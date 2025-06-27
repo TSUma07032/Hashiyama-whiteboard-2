@@ -1,0 +1,2 @@
+# HashiyamaLab-Whiteboard-app
+2025年Pゼミのゼミ用ホワイトボードアプリの開発に用いるGithub Repositoryです。

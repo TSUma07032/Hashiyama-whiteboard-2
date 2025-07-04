@@ -4,4 +4,5 @@
 2025年Pゼミのゼミ用ホワイトボードアプリの開発に用いるGithub Repositoryです。
 branchはdevelopから生やすように。
 
-命名規則：
+命名規則：feature-(名前)(ブランチ切った日付)
+例：feature-Takeda20250704

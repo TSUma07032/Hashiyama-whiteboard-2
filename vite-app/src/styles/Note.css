@@ -1,0 +1,71 @@
+.note {
+  background-color: var(--card-bg-color); /*ダークモード対応*/
+  border: 1px solid var(--border-color);   /*ダークモード対応*/
+  box-shadow: 2px 2px 5px var(--shadow-color); /*ダークモード対応*/
+  padding: 10px;
+  margin: 10px; /* 付箋同士の隙間*/
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2); /* 影で立体感を出す */
+  width: 200px; /* ある程度の幅を決める*/
+  min-height: 100px; /* 最小の高さ */
+  position: relative; /* ★★★ これ、ボタンの位置決めのために重要！ ★★★ */
+  /* Geminiいつもありがとう */
+}
+
+.delete-button { 
+  position: absolute; /* 親要素 .note を基準に位置を決める */
+  top: 5px; /* 上からの位置 */
+  right: 5px; /* 右からの位置 */
+  background-color: var(--button-danger-bg); /*ダークモード対応*/
+  color: white;
+  border: none;
+  border-radius: 50%; /* 丸いボタン */
+  width: 25px;
+  height: 25px;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center; /* 中央寄せ */
+  justify-content: center; /* 中央寄せ */
+  line-height: 1; /* 文字が中央に来るように */
+  padding: 0; /* 余計なパディングを削除 */
+  box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3); /* 小さな影もつける */
+}
+
+/* --- NoteInput.tsx --- */
+.note-input-container {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2000; /* 付箋より手前に表示 */
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  background-color: var(--card-bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px var(--shadow-color);
+}
+
+.note-input {
+  width: 300px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 16px;
+}
+
+.add-note-button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  background-color: #007bff; /* 例: 青色 */
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.add-note-button:hover {
+  background-color: #0056b3;
+}

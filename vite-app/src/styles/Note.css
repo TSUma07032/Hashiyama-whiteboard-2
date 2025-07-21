@@ -1,8 +1,10 @@
+
+
 .note {
-  background-color: var(--card-bg-color); /*ダークモード対応*/
+  background-color: var(--note-bg-color); /*ダークモード対応*/
   border: 1px solid var(--border-color);   /*ダークモード対応*/
   box-shadow: 2px 2px 5px var(--shadow-color); /*ダークモード対応*/
-  padding: 10px;
+  padding: 10px; 
   margin: 10px; /* 付箋同士の隙間*/
   box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2); /* 影で立体感を出す */
   width: 200px; /* ある程度の幅を決める*/
@@ -11,12 +13,14 @@
   /* Geminiいつもありがとう */
 }
 
+
 .delete-button { 
   position: absolute; /* 親要素 .note を基準に位置を決める */
   top: 5px; /* 上からの位置 */
   right: 5px; /* 右からの位置 */
-  background-color: var(--button-danger-bg); /*ダークモード対応*/
-  color: white;
+  background-color: var(--note-bg-color); /*ダークモード対応*/
+  border: 1px solid var(--border-color);   /*ダークモード対応*/
+  box-shadow: 2px 2px 5px var(--shadow-color); /*ダークモード対応*/
   border: none;
   border-radius: 50%; /* 丸いボタン */
   width: 25px;
@@ -59,7 +63,7 @@
   padding: 8px 16px;
   border: none;
   border-radius: 8px;
-  background-color: #007bff; /* 例: 青色 */
+  background-color: var(--button-primary-bg);
   color: white;
   font-size: 16px;
   cursor: pointer;

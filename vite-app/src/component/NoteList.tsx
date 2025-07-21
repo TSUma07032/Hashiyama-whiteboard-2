@@ -56,11 +56,19 @@ export default function NoteList({ initialNotes = [] }: NoteListProps) {
         );
     };
 
+    const handleEditNote = (idToEdit: string, newText: string) => {
+        setNotes((prevNotes) =>
+            prevNotes.map((note) =>
+                note.id === idToEdit ? { ...note, text: newText } : note
+            )
+        );
+    };
+
     return (
         <DndContext onDragEnd={handleDragEnd}>
             <NoteInput onAddNote={handleAddNote} />
             {notes.map((note) => (
-                <Note key={note.id} note={note} onDelete={handleDelete} />
+                <Note key={note.id} note={note} onDelete={handleDelete} onEdit={handleEditNote} />
             ))}
         </DndContext>
     );

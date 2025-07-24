@@ -39,19 +39,17 @@ export default function Note({ note, onDelete, onEdit }: NoteProps) {
     // ドラッグ可能な要素の設定.
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
         id: note.id, //ドラッグするアイテムのユニークなID. note.idを使用
-        // 編集モード中はD&Dを無効にする
-        // enabled: !isEditing, // これだとD&D中に編集モードになるとD&Dが止まる
     });
 
     // transform はドラッグ中の要素の移動情報を保持する
     const style: CSSProperties = {
-        position: 'absolute', // 付箋を自由に配置するために必要
-        transform: transform
+        position: 'absolute', // 画面の特定領域内のみで動作させる際はここを変更
+        transform: transform // dnd-kitの設計思想上、falseの場合も記述する必要あり
             ? `translate3d(${transform.x + note.x}px, ${transform.y + note.y}px, 0)`
             : `translate3d(${note.x}px, ${note.y}px, 0)`,
         opacity: isDragging ? 0.8 : 1, // ドラッグ中はちょっと透明にする
         zIndex: isDragging ? 1000 : (isEditing ? 999 : 1), // ドラッグ中は一番手前、編集中はその次に表示する
-        cursor: isEditing ? 'auto' : 'grab', // 編集中はカーソルをテキスト、それ以外はD&D用に
+        cursor: isEditing ? 'auto' : (isDragging ? 'grabbing' : 'grab'), // 編集中はカーソルを通常に、ドラッグ中はつかむようにする
     };
 
     // テキストエリアがレンダリングされたときにフォーカスをセット
@@ -78,24 +76,33 @@ export default function Note({ note, onDelete, onEdit }: NoteProps) {
 
     // ドキュメント全体へのクリックイベントを監視して、付箋以外をクリックしたら編集終了する
     useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            // `note-container` の中をクリックした場合は何もしない
-            if (textareaRef.current && !textareaRef.current.contains(event.target as Node) && isEditing) {
-                // `event.target` が `note-container` の外なら保存して編集終了
-                const noteContainer = document.querySelector(`.note-container[data-note-id="${note.id}"]`);
+        const handleClickOutside = (event: MouseEvent) => { // クリックされた要素が付箋の外かどうかを判定
+            /*
+            *textareaRef.currentは、DOMがあるかどうかを確認するために使用される
+            *!textareaRef.current.contains(event.target as Node)では、クリックされた要素がtextareaの外かどうかを判定する
+            *isEditingは、現在編集モードかどうかを示すフラグ
+            *もしtextareaの外をクリックしていて、かつ編集モードなら、編集を終了する
+            */
+            if (textareaRef.current && !textareaRef.current.contains(event.target as Node) && isEditing) { 
+                const noteContainer = document.querySelector(`.note-container[data-note-id="${note.id}"]`); 
+
+                // noteContainerが存在し、クリックされた要素がnoteContainerの外なら編集を終了
+                // これで、付箋の外をクリックしたときに編集モードを終了する
+                // 付箋の外をクリックしたときに編集モードを終了
                  if (noteContainer && !noteContainer.contains(event.target as Node)) {
-                    saveAndExitEditMode();
+                    saveAndExitEditMode(); // 編集モードを終了して保存
                 }
             }
         };
 
-        // イベントリスナーを登録
+        // マウスのボタンが押されたならば、handleClickOutsideを実行する
         document.addEventListener('mousedown', handleClickOutside);
         return () => {
-            // クリーンアップ
+            // クリーンアップ関数というらしい
+            // クリーンアップ関数がないと、コンポーネントがアンマウントされたときにイベントリスナーが残ってしまう.つまり、重くなる
             document.removeEventListener('mousedown', handleClickOutside);
         };
-    }, [isEditing, note.id, saveAndExitEditMode]);
+    }, [isEditing, note.id, saveAndExitEditMode]); //idを引数にするのはマナー。saveAndExitEditModeはメモ化したから、引数に加えるべき
 
 
     // マウスダウンイベント（長押し判定開始）
@@ -133,37 +140,47 @@ export default function Note({ note, onDelete, onEdit }: NoteProps) {
     return (
         <div
             className="note-container"
-            ref={setNodeRef} // ドラッグ可能な要素の参照を設定
-            style={style} // ドラッグ中の位置を反映
-            // D&Dのリスナーは isEditing が false の時だけ有効にする
-            {...(!isEditing ? attributes : {})} // 編集モード中は属性を適用しない
-            {...(!isEditing ? listeners : {})} // 編集モード中はリスナーを適用しない
-            onMouseDown={handleMouseDown} // マウスダウンで長押し判定開始
-            onMouseUp={handleMouseUp} // マウスアップで長押し判定終了＆クリック判定
-            data-note-id={note.id} // 外クリック判定用にIDをセット
+            ref={setNodeRef}
+            style={style}
+            {...(!isEditing ? attributes : {})} // 編集モードでは属性を無効化
+            {...(!isEditing ? listeners : {})} // 編集モードではリスナーを無効化
+            {...(!isEditing ? { onMouseDown: handleMouseDown, onMouseUp: handleMouseUp } : {})} // 編集モードではマウスイベントを無効化
+            data-note-id={note.id}
         >
 
             {/* ノートのコンテナ */}
+            {/* ノートのコンテナ */}
             <div className="note">
                 {isEditing ? (
+                    // 編集モード用のtextarea
                     <textarea
                         ref={textareaRef}
                         className="edit-textarea"
                         value={editText}
-                        onChange={(e) => setEditText(e.target.value)} // 直接ここで更新
-                        onBlur={saveAndExitEditMode} // フォーカスが外れたら保存
-                        onKeyDown={handleKeyDown} // キーボードイベントを追加
-                        onPointerDown={(e) => e.stopPropagation()} // これが無いと、D&Dが発動しちゃうから注意
-                        onDoubleClick={(e) => e.stopPropagation()} // テキストエリアでのダブルクリックでD&Dが発動しないように
+                        onChange={(e) => setEditText(e.target.value)}
+                        onBlur={saveAndExitEditMode}
+                        onKeyDown={handleKeyDown}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onDoubleClick={(e) => e.stopPropagation()}
                     />
                 ) : (
-                    <h2 className="note-text" onDoubleClick={() => setIsEditing(true)}>{note.text}</h2>
-                    // ダブルクリックでも編集モードに入れるようにした
+                    // 非編集モード用のtextarea (読み取り専用)
+                    // 本当は非編集モードではtextareaではなく、h2タグとかにしたいけど、見栄えを保つためにtextareaを使う
+                    <textarea
+                        className="note-text-readonly" // 新しいクラス名を使う
+                        value={note.text} // ここはオリジナルのノートテキストを表示
+                        readOnly={true} // 読み取り専用にする
+                        onDoubleClick={() => setIsEditing(true)} // ダブルクリックで編集モード
+                        // 非編集モードではD&DとぶつからないようにonPointerDownはつけない
+                        // ただし、このtextareaの上でD&Dのドラッグ開始イベントを拾いたい場合は、
+                        // onPointerDownをつけず、dnd-kit側のリスナーに任せる必要がある
+                        // 現状ではD&Dのリスナーがnote-containerに付いてるから大丈夫なはず
+                    />
                 )}
             </div>
             <button
                 className="delete-button"
-                onClick={handleDelete}
+                onClick={handleDelete} //なお、削除ボタンは後ほど右クリック
                 onPointerDown={(e) => e.stopPropagation()} // これが無いと、削除ボタンを押してもD&Dが実行してしまう
             >
                 ✖

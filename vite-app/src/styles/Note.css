@@ -55,6 +55,7 @@
   flex-grow: 1;
   overflow-y: auto;
   color: var(--text-color);
+  resize: none; /* サイズ変更不可 */
   cursor: grab; /* 編集モードじゃない時はつかむカーソルにする */
   background-color: var(--note-bg-color-variant); /* ★ ここを変更 ★ */
 }

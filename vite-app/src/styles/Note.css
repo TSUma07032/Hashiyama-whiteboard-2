@@ -1,22 +1,100 @@
+:root {
+  --note-bg-color: #fff; /* 通常のライトモードの背景色 */
+  --border-color: #e0e0e0;
+  --shadow-color: rgba(0, 0, 0, 0.2);
+  --text-color: #333;
+  --button-primary-bg: #007bff;
+  --card-bg-color: #f9f9f9;
+  --note-bg-color-variant: #ffffff; /* 非編集モードのtextareaの色 */
+  --edit-textarea-bg-color: #ccc; /* 編集モードのtextareaの色 */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --note-bg-color: #333;
+    --border-color: #555;
+    --shadow-color: rgba(0, 0, 0, 0.8);
+    --text-color: #eee;
+    --card-bg-color: #222;
+    --note-bg-color-variant: #333; /* ダークモードでの非編集モードのtextareaの色 */
+    --edit-textarea-bg-color: #888; /* ダークモードでの編集モードのtextareaの色 */
+  }
+}
+
+/* .note のスタイルは現状維持 */
+.note-container {
+  /* Note.tsx でこのクラスを使ってるはず */
+  /* ここにposition: absolute;が入ってるはずだから、削除ボタンの位置決めの基準になる */
+  /* transformとopacity、z-index、cursorはNote.tsxのstyle propで制御してるのでここでは不要 */
+}
+
 .note {
-  background-color: var(--card-bg-color); /*ダークモード対応*/
+  background-color: var(--note-bg-color); /*ダークモード対応*/
   border: 1px solid var(--border-color);   /*ダークモード対応*/
   box-shadow: 2px 2px 5px var(--shadow-color); /*ダークモード対応*/
-  padding: 10px;
-  margin: 10px; /* 付箋同士の隙間*/
-  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2); /* 影で立体感を出す */
   width: 200px; /* ある程度の幅を決める*/
-  min-height: 100px; /* 最小の高さ */
-  position: relative; /* ★★★ これ、ボタンの位置決めのために重要！ ★★★ */
-  /* Geminiいつもありがとう */
+  height: 100px;
+  padding: 10px;
+  border-radius: 8px; /* 角を丸くする */
+  position: relative; 
+  color: var(--text-color); /* テキスト色もダークモード対応 */
+
+  display: flex;
+  flex-direction: column; /* 縦に並べる */
+  /* overflow: hidden; */ /* 必要なら追加して内容がはみ出さないように */
+}
+
+.note-text-readonly {
+  font-family: 'Arial', sans-serif;
+  font-size: 16px; 
+  line-height: 1.5;
+  padding: 0;
+  margin: 0;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+  flex-grow: 1;
+  overflow-y: auto;
+  color: var(--text-color);
+  resize: none; /* サイズ変更不可 */
+  cursor: grab; /* 編集モードじゃない時はつかむカーソルにする */
+  background-color: var(--note-bg-color-variant); /* ★ ここを変更 ★ */
+}
+
+/* 編集モード時のテキストエリア (textarea) */
+.edit-textarea {
+  font-family: 'Arial', sans-serif;
+  font-size: 16px; 
+  line-height: 1.5;
+  padding: 0;
+  margin: 0;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+  flex-grow: 1;
+  overflow-y: auto;
+  color: var(--text-color);
+
+  /* デフォルトスタイルをリセット＆調整 */
+  background-color: var(--edit-textarea-bg-color); 
+  border: none;
+  outline: none;
+  resize: none;
+  width: 100%;
+  height: 100%;
+
+  /* 編集中であることを示す控えめなスタイル (フォーカス時) */
+  &:focus { 
+    border: 1px dashed var(--border-color);
+    box-shadow: 0 0 10px var(--shadow-color);
+  }
 }
 
 .delete-button { 
   position: absolute; /* 親要素 .note を基準に位置を決める */
   top: 5px; /* 上からの位置 */
   right: 5px; /* 右からの位置 */
-  background-color: var(--button-danger-bg); /*ダークモード対応*/
-  color: white;
+  background-color: var(--note-bg-color); /*ダークモード対応*/
+  border: 1px solid var(--border-color);   /*ダークモード対応*/
+  box-shadow: 2px 2px 5px var(--shadow-color); /*ダークモード対応*/
   border: none;
   border-radius: 50%; /* 丸いボタン */
   width: 25px;
@@ -59,7 +137,7 @@
   padding: 8px 16px;
   border: none;
   border-radius: 8px;
-  background-color: #007bff; /* 例: 青色 */
+  background-color: var(--button-primary-bg);
   color: white;
   font-size: 16px;
   cursor: pointer;

@@ -3,6 +3,7 @@ import type { NoteData }  from './index.d'; // NoteData型をインポート
 import type { CSSProperties } from 'react';
 import React, { useState, useRef, useEffect, useCallback } from 'react'; // useCallbackを追加した
 import { useDraggable } from '@dnd-kit/core';
+import clsx from 'clsx';
 
 
 /**
@@ -149,13 +150,18 @@ export default function Note({ note, onDelete, onEdit }: NoteProps) {
         >
 
             {/* ノートのコンテナ */}
-            {/* ノートのコンテナ */}
-            <div className="note">
+            <div className={clsx('note', {
+                'note-red': note.color === 'r',
+                'note-blue': note.color === 'b',
+            })}> {/* 色によってクラスを切り替える*/}
                 {isEditing ? (
                     // 編集モード用のtextarea
                     <textarea
                         ref={textareaRef}
-                        className="edit-textarea"
+                        className={clsx('edit-textarea', {
+                            'edit-textarea-red': note.color === 'r',
+                            'edit-textarea-blue': note.color === 'b',
+                        })} // 色によってクラスを切り替える
                         value={editText}
                         onChange={(e) => setEditText(e.target.value)}
                         onBlur={saveAndExitEditMode}
@@ -167,7 +173,10 @@ export default function Note({ note, onDelete, onEdit }: NoteProps) {
                     // 非編集モード用のtextarea (読み取り専用)
                     // 本当は非編集モードではtextareaではなく、h2タグとかにしたいけど、見栄えを保つためにtextareaを使う
                     <textarea
-                        className="note-text-readonly" // 新しいクラス名を使う
+                        className={clsx('note-text-readonly', {
+                            'note-text-readonly-red': note.color === 'r',
+                            'note-text-readonly-blue': note.color === 'b',
+                        })} // 色によってクラスを切り替える
                         value={note.text} // ここはオリジナルのノートテキストを表示
                         readOnly={true} // 読み取り専用にする
                         onDoubleClick={() => setIsEditing(true)} // ダブルクリックで編集モード

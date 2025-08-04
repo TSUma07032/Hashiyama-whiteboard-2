@@ -5,27 +5,22 @@
   --text-color: #333;
   --button-primary-bg: #007bff;
   --card-bg-color: #f9f9f9;
-  --note-bg-color-variant: #ffffff; /* 非編集モードのtextareaの色 */
+  --note-bg-color-variant: #000000; /* 非編集モードのtextareaの色 */
   --edit-textarea-bg-color: #ccc; /* 編集モードのtextareaの色 */
-}
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --note-bg-color: #333;
-    --border-color: #555;
-    --shadow-color: rgba(0, 0, 0, 0.8);
-    --text-color: #eee;
-    --card-bg-color: #222;
-    --note-bg-color-variant: #333; /* ダークモードでの非編集モードのtextareaの色 */
-    --edit-textarea-bg-color: #888; /* ダークモードでの編集モードのtextareaの色 */
-  }
-}
+  /* --- Red Note Variables --- */
+  --note-bg-color-red: #f88989; /* 赤系の背景色 */
+  --border-color-red: #f88989;
+  --shadow-color-red: rgba(255, 0, 0, 0.2);
+  --text-color-red: #000000; 
+  --edit-textarea-bg-color-red: #ffcfcf; /* 編集モードの赤 */
 
-/* .note のスタイルは現状維持 */
-.note-container {
-  /* Note.tsx でこのクラスを使ってるはず */
-  /* ここにposition: absolute;が入ってるはずだから、削除ボタンの位置決めの基準になる */
-  /* transformとopacity、z-index、cursorはNote.tsxのstyle propで制御してるのでここでは不要 */
+  /* --- Blue Note Variables --- */
+  --note-bg-color-blue: #99c2ff; /* 青系の背景色 */
+  --border-color-blue: #99c2ff;
+  --shadow-color-blue: rgba(0, 0, 255, 0.2);
+  --text-color-blue: #000000; 
+  --edit-textarea-bg-color-blue: #d7e7ff; /* 編集モードの青 */
 }
 
 .note {
@@ -44,6 +39,21 @@
   /* overflow: hidden; */ /* 必要なら追加して内容がはみ出さないように */
 }
 
+/* 赤い付箋用のスタイル */
+.note-red {
+  background-color: var(--note-bg-color-red); /*ダークモード対応*/
+  border: 1px solid var(--border-color-red);   /*ダークモード対応*/
+  box-shadow: 2px 2px 5px var(--shadow-color-red); /*ダークモード対応*/
+}
+
+/* 青い付箋用のスタイル */
+.note-blue {
+  background-color: var(--note-bg-color-blue); /*ダークモード対応*/
+  border: 1px solid var(--border-color-blue);   /*ダークモード対応*/
+  box-shadow: 2px 2px 5px var(--shadow-color-blue); /*ダークモード対応*/
+}
+
+/* textarea (非編集モード) */
 .note-text-readonly {
   font-family: 'Arial', sans-serif;
   font-size: 16px; 
@@ -60,7 +70,15 @@
   background-color: var(--note-bg-color-variant); /* ★ ここを変更 ★ */
 }
 
-/* 編集モード時のテキストエリア (textarea) */
+.note-text-readonly-red {
+  background-color: var(--note-bg-color-red); /* 赤い付箋の非編集モード */
+}
+
+.note-text-readonly-blue {
+  background-color: var(--note-bg-color-blue); /* 青い付箋の非編集モード */
+}
+
+/* textarea (編集モード)*/
 .edit-textarea {
   font-family: 'Arial', sans-serif;
   font-size: 16px; 
@@ -88,6 +106,25 @@
   }
 }
 
+/* 赤い付箋の編集モード */
+.edit-textarea-red {
+  background-color: var(--edit-textarea-bg-color-red); /* 赤い付箋の編集モード */
+  color: var(--text-color-red);
+
+  &:focus { 
+    border: 1px dashed var(--border-color-red);
+    box-shadow: 0 0 10px var(--shadow-color-red);
+  }
+}
+
+
+/* 青い付箋の編集モード */
+.edit-textarea-blue {
+  background-color: var(--edit-textarea-bg-color-blue); /* 青い付箋の編集モード */
+  color: var(--text-color-blue);
+}
+
+/* 最終的には削除ボタンは使わない想定 */
 .delete-button { 
   position: absolute; /* 親要素 .note を基準に位置を決める */
   top: 5px; /* 上からの位置 */

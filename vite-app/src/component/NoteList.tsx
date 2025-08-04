@@ -29,12 +29,13 @@ export default function NoteList({ initialNotes = [] }: NoteListProps) {
     const [notes, setNotes] = useState<NoteData[]>(initialNotes);
 
     // ノート追加処理 (NoteInputから呼ばれる)
-    const handleAddNote = (text: string) => {
+    const handleAddNote = (text: string, color: string) => {
         const newNote: NoteData = {
             id: nanoid(), // ユニークIDを生成
             text,
             x: DEFAULT_NOTE_POSITION.x,
             y: DEFAULT_NOTE_POSITION.y,
+            color: color, // デフォルトの色を設定
         };
         setNotes((prevNotes) => [...prevNotes, newNote]);
     };

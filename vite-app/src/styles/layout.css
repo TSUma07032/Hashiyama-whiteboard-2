@@ -67,3 +67,12 @@
   justify-content: center; /* 中央揃え */
   min-height: 0; /* 子要素の高さが親を超えないようにする */
 }
+
+/* 各エリアの文字色を強制的に黒に設定 */
+.app-layout,
+.header-area,
+.left-sidebar-area,
+.main-content-area,
+.right-sidebar-area {
+  color: #333333; /* 落ち着いた黒系の色に指定 */
+}

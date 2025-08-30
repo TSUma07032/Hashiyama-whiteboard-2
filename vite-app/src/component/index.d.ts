@@ -17,4 +17,5 @@ export type NoteData = {
   x: number; // 付箋のX座標
   y: number; // 付箋のY座標
   color: string; // 付箋の色
+  icon?: string | null; // 付箋のアイコン
 };

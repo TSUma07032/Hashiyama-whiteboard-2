@@ -35,22 +35,14 @@
 }
 
 .main-content-area {
-  grid-row: 2 / 3; /* 2行目に配置 */
-  grid-column: 2 / 3; /* 2列目に配置 */
+  grid-row: 2 / 3;
+  grid-column: 2 / 3;
 
-  /* ここにメインコンテンツのデザインを追加 */
-  background-color: #ffffff; /* メインコンテンツの背景色 */
-  padding: 1rem; /* メインコンテンツのパディング */
-  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1); /* メインコンテンツの内側の影 */
-  overflow-y: auto; /* 縦方向のスクロールを可能にする */
-  overflow-x: auto; /* 横方向のスクロールを可能にする */
-  position: relative; /* タイトルの絶対配置のために必要 */
-  display: flex;
-  flex-direction: column; /* 縦に並べる */
-  align-items: center; /* 中央揃え */
-  justify-content: center; /* 中央揃え */
-  min-height: 0; /* 子要素の高さが親を超えないようにする */
-
+  background-color: #ffffff;
+  padding: 1rem;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1);
+  overflow: auto; 
+  position: relative;
 }
 
 .right-sidebar-area {

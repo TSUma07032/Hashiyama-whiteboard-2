@@ -28,15 +28,12 @@
   background-color: var(--note-bg-color); 
   border: 1px solid var(--border-color);  
   box-shadow: 2px 2px 5px var(--shadow-color); 
-  width: 200px;
-  height: 100px;
   padding: 10px;
   border-radius: 8px;
-  position: relative; 
   color: var(--text-color);
-
   display: flex;
   flex-direction: column;
+  height: 100%;
 }
 
 .note-red {
@@ -139,22 +136,29 @@
   line-height: 1;
   padding: 0;
   box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+  z-index: 1002;
 }
 
-.note-input-container {
-  position: fixed;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 2000;
-  display: flex;
-  gap: 8px;
-  padding: 12px;
-  background-color: var(--card-bg-color);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  box-shadow: 0 4px 12px var(--shadow-color);
+
+.icon-container {
+    position: absolute; /* 親要素に対して絶対的な位置を決める */
+    bottom: 5px; /* 下から5pxの位置に置く */
+    right: 5px; /* 右から5pxの位置に置く */
+    width: 24px; /* アイコンの幅を24pxに固定 */
+    height: 24px; /* アイコンの高さを24pxに固定 */
+    border-radius: 50%; /* 縁を丸くして、丸にする */
+    overflow: hidden; /* はみ出した部分を隠す */
+    border: 1px solid #fff; /* 白い縁取りをつけて、目立たせる */
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    z-index: 1000; 
 }
+
+.user-icon {
+    width: 100%; /* 親要素の幅に合わせて100%にする */
+    height: 100%; /* 親要素の高さに合わせて100%にする */
+    object-fit: cover; /* 画像の縦横比を保ちつつ、枠いっぱいに表示する魔法 */
+}
+
 
 .note-input {
   width: 300px;
@@ -181,4 +185,76 @@
 
 .delete-button {
   color: #000;
+}
+
+/* リサイズハンドル用のスタイル */
+.react-resizable-handle {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    bottom: 0;
+    right: 0;
+    background: rgba(0, 0, 0, 0.2);
+    cursor: nwse-resize;
+    z-index: 1001; 
+    border-bottom-right-radius: 5px;
+}
+
+.react-resizable-handle-se { /* 南東（south-east）のハンドルを特に指定してる */
+    bottom: 0;
+    right: 0;
+    cursor: nwse-resize;
+}
+
+/* 返信1つ1つを囲むコンテナ */
+.reply {
+  display: flex; /* アイコンとテキストを横並びにする魔法 */
+  align-items: center; /* 上下中央にそろえる魔法 */
+  margin-top: 8px;
+  padding: 4px;
+  background-color: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+}
+
+/* 返信者のアイコンのスタイル */
+.reply-icon {
+  width: 24px; /* アイコンの幅 */
+  height: 24px; /* アイコンの高さ */
+  border-radius: 50%; /* アイコンをまん丸にするおまじない */
+  object-fit: cover; /* 画像が潰れないように、いい感じにトリミングしてくれる */
+  margin-right: 8px; /* アイコンとテキストの間に余白を作る */
+}
+
+/* 返信テキストのスタイル */
+.reply-text {
+  font-size: 14px;
+  color: #333;
+  margin: 0; /* 余計な余白を消す */
+  word-break: break-all; /* 長い文章でもはみ出さずに改行する */
+}
+
+/* --- (おまけ) 返信入力エリアのスタイル --- */
+.reply-input-area {
+  margin-top: 8px;
+}
+
+.reply-input-area textarea {
+  width: 100%;
+  height: 50px;
+  margin-bottom: 4px;
+}
+
+.note-read {
+  opacity: 0.6; /* ちょっと透明にして、完了感を出す */
+  transition: opacity 0.3s ease; /* ふんわり変化させる */
+}
+
+/* 既読チェックボックスのスタイル */
+.read-checkbox-container {
+  position: absolute;
+  top: 5px;
+  left: 5px; /* 左上に配置する例 */
+  cursor: pointer;
+  z-index: 10; /* 他の要素より手前に表示 */
+  font-size: 18px;
 }

@@ -4,6 +4,8 @@ import type { CSSProperties } from 'react';
 import React, { useState, useRef, useEffect, useCallback, forwardRef, type Ref } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import clsx from 'clsx';
+import { ResizableBox, type ResizeCallbackData  } from 'react-resizable';
+import type { SyntheticEvent} from 'react';
 
 /**
  * @filename Note.tsx
@@ -15,10 +17,14 @@ export type NoteProps = {
     note: NoteData;
     onDelete: (id: string) => void;
     onEdit: (id: string, newText: string) => void;
+    onResize: (id: string, newWidth: number, newHeight: number) => void;
+    scale: number; 
+    onAddReply: (noteId: string, replyText: string) => void;
+    onToggleReadStatus: (noteId: string) => void;
 };
 
 // forwardRefを使って、外部からrefを受け取れるようにする
-const Note = forwardRef<HTMLDivElement, NoteProps>(({ note, onDelete, onEdit }, ref: Ref<HTMLDivElement>) => {
+const Note = forwardRef<HTMLDivElement, NoteProps>(({ note, onDelete, onEdit, onResize, scale, onAddReply, onToggleReadStatus }, ref: Ref<HTMLDivElement>) => {
 
     const handleDelete = () => {
         onDelete(note.id);
@@ -27,6 +33,10 @@ const Note = forwardRef<HTMLDivElement, NoteProps>(({ note, onDelete, onEdit }, 
     const [isEditing, setIsEditing] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const [editText, setEditText] = useState(note.text);
+    const [noteSize, setNoteSize] = useState({ width: note.width || 200, height: note.height || 100 });
+    const [isReplying, setIsReplying] = useState(false);
+    const [replyText, setReplyText] = useState('');
+    const replyTextareaRef = useRef<HTMLTextAreaElement>(null);
 
     // 長押し判定用のタイマーID
     const longPressTimerRef = useRef<number | null>(null);
@@ -35,7 +45,7 @@ const Note = forwardRef<HTMLDivElement, NoteProps>(({ note, onDelete, onEdit }, 
     // ドラッグ可能な要素の設定.
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
         id: note.id,
-        disabled: isEditing, // 編集モード中はドラッグを無効化する
+        disabled: isEditing,
     });
 
     // 外部から渡されたrefとdnd-kitのrefを結合する
@@ -55,9 +65,9 @@ const Note = forwardRef<HTMLDivElement, NoteProps>(({ note, onDelete, onEdit }, 
 
     const style: CSSProperties = {
         position: 'absolute',
-        transform: transform
-            ? `translate3d(${transform.x + note.x}px, ${transform.y + note.y}px, 0)`
-            : `translate3d(${note.x}px, ${note.y}px, 0)`,
+        left: note.x,
+        top: note.y,
+        transform: transform ? `translate3d(${transform.x / scale}px, ${transform.y / scale}px, 0)` : undefined,
         opacity: isDragging ? 0.8 : 1,
         zIndex: isDragging ? 1000 : (isEditing ? 999 : 1),
         cursor: isEditing ? 'auto' : (isDragging ? 'grabbing' : 'grab'),
@@ -81,13 +91,18 @@ const Note = forwardRef<HTMLDivElement, NoteProps>(({ note, onDelete, onEdit }, 
     }, [editText, note.id, note.text, onEdit]);
 
     // マウスダウンイベント（長押し判定開始）
-    const handleMouseDown = useCallback(() => {
+    const handleMouseDown = useCallback((e: React.MouseEvent) => {
+        // dnd-kitのイベントを発火させる！これが最重要！
+        listeners?.onMouseDown?.(e);
+
+        e.stopPropagation();
+
+        // 長押し判定のロジックはそのまま
         isLongPressRef.current = false;
         longPressTimerRef.current = window.setTimeout(() => {
             isLongPressRef.current = true;
-            setIsEditing(false);
-        }, 300);
-    }, []);
+        }, 300); // 300ms以上押したら長押し
+    }, [listeners]);
 
     // マウスアップイベント（長押し判定終了＆クリック判定）
     const handleMouseUp = useCallback(() => {
@@ -96,6 +111,8 @@ const Note = forwardRef<HTMLDivElement, NoteProps>(({ note, onDelete, onEdit }, 
             longPressTimerRef.current = null;
         }
 
+        // isDragging は dnd-kit が更新してくれる
+        // 長押しされてなくて、かつドラッグ中でなければ編集モードに移行
         if (!isLongPressRef.current && !isDragging) {
             setIsEditing(true);
         }
@@ -112,21 +129,61 @@ const Note = forwardRef<HTMLDivElement, NoteProps>(({ note, onDelete, onEdit }, 
         saveAndExitEditMode();
     }, [saveAndExitEditMode]);
 
+    // サイズ変更時のハンドラ
+    const  handleResize = useCallback((e: SyntheticEvent, data: ResizeCallbackData) => {
+        const { size } = data;
+        setNoteSize(size);
+        onResize(note.id, size.width, size.height);
+    }, [note.id, onResize]);
+
+   const handleReplyButtonClick = () => {
+        setIsReplying(true);
+    };
+
+    const handleReplySubmit = () => {
+        if (replyText.trim() !== '') {
+            onAddReply(note.id, replyText); 
+            setReplyText('');
+            setIsReplying(false);
+        }
+    };
+
+     useEffect(() => {
+        if (isReplying && replyTextareaRef.current) {
+            replyTextareaRef.current.focus();
+        }
+    }, [isReplying]);
+
+    const handleToggleRead = (e: React.MouseEvent) => {
+        // ドラッグイベントと競合しないようにするおまじない
+        e.stopPropagation();
+        onToggleReadStatus(note.id);
+    };
+
     return (
-        <div
+        <ResizableBox
+            width={noteSize.width}
+            height={noteSize.height}
+            minConstraints={[100, 50]}
+            maxConstraints={[800, 600]}
+            onResize={handleResize}
             className="note-container"
-            ref={combinedRef}
             style={style}
-            {...(!isEditing ? attributes : {})}
-            {...(!isEditing ? listeners : {})}
-            onMouseDown={!isEditing ? handleMouseDown : undefined}
-            onMouseUp={!isEditing ? handleMouseUp : undefined}
             data-note-id={note.id}
         >
-            <div className={clsx('note', {
-                'note-red': note.color === 'r',
-                'note-blue': note.color === 'b',
-            })}>
+            <div 
+                ref={combinedRef}
+                className={clsx('note', {
+                    'note-red': note.color === 'r',
+                    'note-blue': note.color === 'b',
+                    'note-read': note.isRead, // ← これを追加！
+                })}
+                {...(!isEditing ? attributes : {})}
+                {...(!isEditing ? listeners : {})}
+                onMouseDown={!isEditing ? handleMouseDown : undefined}
+                onMouseUp={!isEditing ? handleMouseUp : undefined}
+                data-note-id={note.id}
+            >
                 {isEditing ? (
                     <textarea
                         ref={textareaRef}
@@ -156,6 +213,36 @@ const Note = forwardRef<HTMLDivElement, NoteProps>(({ note, onDelete, onEdit }, 
                     </div>
                 )}
             </div>
+            <div className="replies-container">
+                {note.replies?.map(reply => (
+                    <div key={reply.id} className="reply">
+                        {reply.icon && <img src={reply.icon} alt="reply icon" className="reply-icon" />}
+                        <p className="reply-text">{reply.text}</p>
+                    </div>
+                ))}
+            </div>
+            <div className="read-checkbox-container" onClick={handleToggleRead}>
+                    {note.isRead ? '✅' : '⬜️'}
+            </div>
+
+            {isReplying ? (
+                    <div className="reply-input-area">
+                        <textarea
+                            ref={replyTextareaRef}
+                            value={replyText}
+                            onChange={(e) => setReplyText(e.target.value)}
+                            placeholder="返信を入力..."
+                        />
+                        <button onClick={handleReplySubmit}>送信</button>
+                        <button onClick={() => setIsReplying(false)}>キャンセル</button>
+                    </div>
+                ) : (
+                    <button className="reply-button" onClick={handleReplyButtonClick}>
+                        返信する
+                    </button>
+                )}
+            
+
             <button
                 className="delete-button"
                 onClick={handleDelete}
@@ -164,7 +251,7 @@ const Note = forwardRef<HTMLDivElement, NoteProps>(({ note, onDelete, onEdit }, 
             >
                 ✖
             </button>
-        </div>
+        </ResizableBox>
     );
 });
 

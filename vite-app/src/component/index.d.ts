@@ -3,6 +3,24 @@
  */
 
 /**
+ * 返信のデータ構造の型定義
+ * @typedef {object} ReplyData
+ * @property {string} id - 返信のユニークなID
+ * @property {string} noteId - どの付箋への返信かを示すID
+ * @property {string} text - 返信の内容
+ * @property {'comment' | 'question'} type - 返信の種類（コメント or 質問）
+ * @property {string} [icon] - 返信者のアイコン
+ * @property {Date} createdAt - 作成日時
+ */
+export type ReplyData = {
+  id: string;
+  noteId: string;
+  text: string;
+  icon?: string | null;
+  createdAt: Date;
+};
+
+/**
  * 付箋のデータ構造の型定義
  * @typedef {object} NoteData
  * @property {string} id - 付箋のユニークなID。
@@ -18,4 +36,8 @@ export type NoteData = {
   y: number; // 付箋のY座標
   color: string; // 付箋の色
   icon?: string | null; // 付箋のアイコン
+  width?: number; // 付箋の幅
+  height?: number; // 付箋の高さ
+  isRead?: boolean; // 付箋が既読かどうか
+  replies?: ReplyData[];
 };

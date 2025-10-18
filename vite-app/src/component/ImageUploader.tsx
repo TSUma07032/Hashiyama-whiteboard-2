@@ -20,7 +20,7 @@ export default function ImageUploader({ onUpload }: ImageUploaderProps) {
     const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
-            // ここが重要！画像を一時的なURLに変換する呪文
+            // 画像を一時的なURLに変換する呪文
             const imageUrl = URL.createObjectURL(file);
             onUpload(imageUrl);
             setFileName(file.name);
@@ -33,33 +33,21 @@ export default function ImageUploader({ onUpload }: ImageUploaderProps) {
     };
 
     return (
-        <div className="flex flex-col items-center p-4 border-2 border-dashed border-gray-400 rounded-md bg-gray-50 mb-4">
-            {/* 隠されたファイル入力フィールド */}
-            <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                className="hidden" // 見えないようにする
-                accept="image/png, image/jpeg"
-            />
-            {fileName ? (
-                <>
-                    <p className="text-sm text-gray-600 mb-2">選択中のファイル: <span className="font-bold">{fileName}</span></p>
-                    <button
-                        onClick={handleButtonClick}
-                        className="py-2 px-4 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
-                    >
-                        アイコンを変更する
-                    </button>
-                </>
-            ) : (
-                <button
-                    onClick={handleButtonClick}
-                    className="py-2 px-4 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
-                >
-                    アイコンをアップロード
-                </button>
-            )}
-        </div>
-    );
+    <div className="flex flex-col items-center p-4 border-2 border-dashed border-gray-400 rounded-md bg-gray-50 mb-4">
+        <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            className="hidden"
+            accept="image/png, image/jpeg"
+        />
+        <p className="text-sm text-gray-600 mb-2">{fileName ? `選択中のファイル: ${fileName}` : 'アイコンが選択されていません'}</p>
+        <button
+            onClick={handleButtonClick}
+            className="py-2 px-4 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+        >
+            {fileName ? 'アイコンを変更する' : 'アイコンをアップロード'}
+        </button>
+    </div>
+);
 }

@@ -13,9 +13,10 @@ import '../styles/Note.css'; // Note.cssをインポートして、付箋のス�
 type LeftSidebarProps = {
     className?: string; // classNameを受け取れるようにする
     onIconUpload: (imageUrl: string) => void;
+    dataNoPan?: boolean; // data-no-pan属性を受け取れるようにする
 };
 
-export default function LeftSidebar({ className, onIconUpload }: LeftSidebarProps) {
+export default function LeftSidebar({ className, onIconUpload, dataNoPan }: LeftSidebarProps) {
     // 赤い付箋のテンプレート
     const {
         attributes: redAttributes,
@@ -32,6 +33,8 @@ export default function LeftSidebar({ className, onIconUpload }: LeftSidebarProp
         transform: redTransform ? `translate3d(${redTransform.x}px, ${redTransform.y}px, 0)` : undefined,
         cursor: isRedDragging ? 'grabbing' : 'grab',
         opacity: isRedDragging ? 0.8 : 1,
+        position: 'relative',
+        zIndex: isRedDragging ? 9999 : undefined,
     };
 
     // 青い付箋のテンプレート
@@ -51,11 +54,12 @@ export default function LeftSidebar({ className, onIconUpload }: LeftSidebarProp
         cursor: isBlueDragging ? 'grabbing' : 'grab',
         opacity: isBlueDragging ? 0.8 : 1,
         position: 'relative',
+        zIndex: isBlueDragging ? 9999 : undefined,
     };
 
     return (
         // 受け取ったclassNameをaside要素に適用する
-        <aside className={`w-64 bg-gray-100 p-4 shadow-lg rounded-r-lg flex flex-col items-center ${className || ''}`}>
+        <aside className={`w-64 bg-gray-100 p-4 shadow-lg rounded-r-lg flex flex-col items-center ${className || ''}`} data-no-pan={dataNoPan ? 'true' : undefined}>
             {/* 左サイドバーのプレースホルダー */}
             <div className="w-full h-12 bg-gray-300 rounded-md mb-4 flex items-center justify-center text-gray-600 font-medium">ツールタブ</div>
             

@@ -9,8 +9,9 @@ import NoteInput from './NoteInput'; // NoteInputをインポート
 import { DndContext, type DragEndEvent, type DragStartEvent, MouseSensor, useSensor, useSensors} from '@dnd-kit/core';
 import { nanoid } from "nanoid"; // nanoidをインポート(TODO: firebaseが付与するIDに変更予定)
 import type { NoteData, ReplyData } from './index.d'; // NoteData型をインポート
+import PDFViewer from './PDFViewer'; // PDFViewerコンポーネントをインポート
 import '../styles/layout.css';
-
+import { supabase } from './supabaseClient';
 
 /**
  * @filename Layout.tsx
@@ -33,6 +34,8 @@ export default function Layout() {
     const [isPanning, setIsPanning] = useState(false);
     const panStartRef = useRef({ x: 0, y: 0 });
 
+    const [showPdfViewer, setShowPdfViewer] = useState(false);
+
     const viewpointRef = useRef(viewpoint);
     useEffect(() => {
         viewpointRef.current = viewpoint;
@@ -40,6 +43,42 @@ export default function Layout() {
 
     // ↓↓↓ ドラッグ開始時のカーソル位置を記憶するための箱を追加！ ↓↓↓
     const dragStartCursorRef = useRef({ x: 0, y: 0 });
+
+    /**
+     * アプリ起動時に、Supabaseから全ノートデータを読み込む
+     */
+    useEffect(() => {
+        // 1. データをぶっこ抜くための非同期関数を定義
+        const fetchNotes = async () => {
+            console.log("Supabaseからノートデータを呼び出す");
+            try {
+                // 2. 'notes' テーブルから全データ (*) を select！
+                //    作成日時 (created_at) の昇順 (ascending: true) で並べる！
+                const { data, error } = await supabase
+                    .from('notes')
+                    .select('*') // 全カラムくれ
+                    .order('created_at', { ascending: true }); // 古い順に並べる
+
+                if (error) {
+                    throw error; // 失敗したら即エラー
+                }
+
+                // 3. 取得したデータを、ローカルstate (setNotes) にブチ込む！
+                if (data) {
+                    setNotes(data as NoteData[]); // ◀◀◀ ここで初めて画面に反映される！
+                    console.log("召喚成功！ノートデータ:", data);
+                }
+                
+            } catch (error) {
+                console.error('ノート召喚:', error);
+                alert(`ノートの読み込みに失敗した: ${(error as Error).message}`);
+            }
+        };
+
+        // 4. 関数を実行！
+        fetchNotes();
+
+    }, []); // ◀◀◀ 【超絶重要】第2引数の配列を「空っぽ」にしろ！
 
     const mouseSensor = useSensor(MouseSensor, {
         activationConstraint: {
@@ -66,19 +105,43 @@ export default function Layout() {
     };
 
     // ノート追加処理
-    const handleAddNote = (text: string, color: string, x?: number, y?: number, icon?: string) => {
-        const newNote: NoteData = {
-            id: nanoid(),
+    const handleAddNote = async (text: string, color: string, x?: number, y?: number) => {
+        // 1. DBに挿入するオブジェクトを定義 (id はDBが自動生成するからいらない)
+        const noteToInsert = {
             text,
-            // 座標計算もシンプルにした
             x: x !== undefined ? x : DEFAULT_NOTE_POSITION.x,
             y: y !== undefined ? y : DEFAULT_NOTE_POSITION.y,
             width: DEFAULT_NOTE_SIZE.width,
             height: DEFAULT_NOTE_SIZE.height,
             color: color,
-            icon: uploadedIcon,
+            icon: uploadedIcon, // stateから取得
+            isRead: false, // デフォルト
+            replies: [], // デフォルト
         };
-        setNotes((prevNotes) => [...prevNotes, newNote]);
+        
+        try {
+            // 2. Supabase DBにガチで挿入！
+            //    .select() で、挿入したデータ丸ごと（新しいIDとか）を返してもらう！
+            const { data, error } = await supabase
+                .from('notes')
+                .insert(noteToInsert)
+                .select(); // これが重要！
+
+            if (error) {
+                throw error; // 失敗したら即エラー
+            }
+
+            // 3. 成功したら、DBから返ってきたデータをローカルstateにも反映！
+            if (data) {
+                const newNoteFromDB = data[0] as NoteData; // 型を教える
+                setNotes((prevNotes) => [...prevNotes, newNoteFromDB]);
+                console.log('DBにノート追加成功', newNoteFromDB);
+            }
+
+        } catch (error) {
+            console.error('ノート追加:', error);
+            alert(`ノート追加に失敗: ${(error as Error).message}`);
+        }
     };
 
     const handleResizeNote = (id: string, newWidth: number, newHeight: number) => {
@@ -90,9 +153,27 @@ export default function Layout() {
     };
 
     // ノート削除処理
-    const handleDelete = (idToDelete: string) => {
-        setNotes((prevNotes) => prevNotes.filter((note) => note.id !== idToDelete));
-        console.log(`ノート (id: ${idToDelete}) を削除しました。`);
+    const handleDelete = async (idToDelete: string) => {
+        try {
+            // 1. まず、Supabase DBから削除！
+            //    .eq() でidが 'idToDelete' と等しいヤツを指定する！
+            const { error } = await supabase
+                .from('notes')
+                .delete()
+                .eq('id', idToDelete); // ◀◀◀ これが WHERE id = '...' って意味
+
+            if (error) {
+                throw error; // 失敗したら即エラー
+            }
+
+            // 2. DBから無事に消せたら、ローカルstateからも削除
+            setNotes((prevNotes) => prevNotes.filter((note) => note.id !== idToDelete));
+            console.log(`ノート (id: ${idToDelete}) をDBから削除成功`);
+
+        } catch (error) {
+            console.error('ノート削除:', error);
+            alert(`ノート削除に失敗した: ${(error as Error).message}`);
+        }
     };
 
     // ノート編集処理
@@ -105,7 +186,7 @@ export default function Layout() {
     };
 
     // ドラッグ終了時のハンドラ
-    const handleDragEnd = (event: DragEndEvent) => {
+    const handleDragEnd = async (event: DragEndEvent) => {
         const { active, delta } = event;
 
         // activeId が null でない、つまり何かしらの要素がドラッグされた場合
@@ -130,7 +211,8 @@ export default function Layout() {
                     const worldX = (dropX - currentViewpoint.x) / scale;
                     const worldY = (dropY - currentViewpoint.y) / scale;
 
-                    handleAddNote(activeData.text || '', activeData.color || 'r', worldX, worldY, uploadedIcon || undefined);
+                    // 4. 付箋を追加する
+                    await handleAddNote(activeData.text || '', activeData.color || 'r', worldX, worldY);
                 }
             } else {
                 // 既存の付箋の移動ロジック
@@ -250,6 +332,7 @@ export default function Layout() {
                 <LeftSidebar 
                     className="left-sidebar-area" 
                     onIconUpload={setUploadedIcon}
+                    onTogglePdfViewer={() => setShowPdfViewer(prev => !prev)}
                     data-no-pan="true"
                 />
                 <MainContent
@@ -270,6 +353,13 @@ export default function Layout() {
                     </span>
                     <button onClick={handleZoomIn} className="zoom-button">+</button>
                 </div>
+                {showPdfViewer && (
+                    <div className="modal-overlay" onClick={() => setShowPdfViewer(false)}>
+                        <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                            <PDFViewer />
+                        </div>
+                    </div>
+                )}
             </div>
         </DndContext>
     );

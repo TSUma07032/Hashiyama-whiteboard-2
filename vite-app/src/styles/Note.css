@@ -1,47 +1,51 @@
 :root {
-  --note-bg-color: #fff; /* 通常のライトモードの背景色 */
+  /* ライトモード用の色設定 (デフォルト) */
+  --note-bg-color: #fff;
   --border-color: #e0e0e0;
   --shadow-color: rgba(0, 0, 0, 0.2);
   --text-color: #333;
   --button-primary-bg: #007bff;
   --card-bg-color: #f9f9f9;
-  --note-bg-color-variant: #ffffff; /* 非編集モードのtextareaの色 */
-  --edit-textarea-bg-color: #ccc; /* 編集モードのtextareaの色 */
-}
+  --note-bg-color-variant: #f0f0f0; /* 非編集モードのtextareaの色を背景より少し暗く */
+  --edit-textarea-bg-color: #f0f0f0; /* 編集モードのtextareaの色 */
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --note-bg-color: #333;
-    --border-color: #555;
-    --shadow-color: rgba(0, 0, 0, 0.8);
-    --text-color: #eee;
-    --card-bg-color: #222;
-    --note-bg-color-variant: #333; /* ダークモードでの非編集モードのtextareaの色 */
-    --edit-textarea-bg-color: #888; /* ダークモードでの編集モードのtextareaの色 */
-  }
-}
+  /* --- Red Note Variables --- */
+  --note-bg-color-red: #f88989;
+  --border-color-red: #f88989;
+  --shadow-color-red: rgba(255, 0, 0, 0.2);
+  --text-color-red: #333; /* 赤付箋でも文字は黒系に統一 */
+  --edit-textarea-bg-color-red: #ffcfcf;
 
-/* .note のスタイルは現状維持 */
-.note-container {
-  /* Note.tsx でこのクラスを使ってるはず */
-  /* ここにposition: absolute;が入ってるはずだから、削除ボタンの位置決めの基準になる */
-  /* transformとopacity、z-index、cursorはNote.tsxのstyle propで制御してるのでここでは不要 */
+  /* --- Blue Note Variables --- */
+  --note-bg-color-blue: #99c2ff;
+  --border-color-blue: #99c2ff;
+  --shadow-color-blue: rgba(0, 0, 255, 0.2);
+  --text-color-blue: #333; /* 青付箋でも文字は黒系に統一 */
+  --edit-textarea-bg-color-blue: #d7e7ff;
 }
 
 .note {
-  background-color: var(--note-bg-color); /*ダークモード対応*/
-  border: 1px solid var(--border-color);   /*ダークモード対応*/
-  box-shadow: 2px 2px 5px var(--shadow-color); /*ダークモード対応*/
-  width: 200px; /* ある程度の幅を決める*/
-  height: 100px;
+  background-color: var(--note-bg-color); 
+  border: 1px solid var(--border-color);  
+  box-shadow: 2px 2px 5px var(--shadow-color); 
   padding: 10px;
-  border-radius: 8px; /* 角を丸くする */
-  position: relative; 
-  color: var(--text-color); /* テキスト色もダークモード対応 */
-
+  border-radius: 8px;
+  color: var(--text-color);
   display: flex;
-  flex-direction: column; /* 縦に並べる */
-  /* overflow: hidden; */ /* 必要なら追加して内容がはみ出さないように */
+  flex-direction: column;
+  height: 100%;
+}
+
+.note-red {
+  background-color: var(--note-bg-color-red);
+  border: 1px solid var(--border-color-red);
+  box-shadow: 2px 2px 5px var(--shadow-color-red);
+}
+
+.note-blue {
+  background-color: var(--note-bg-color-blue);
+  border: 1px solid var(--border-color-blue);
+  box-shadow: 2px 2px 5px var(--shadow-color-blue);
 }
 
 .note-text-readonly {
@@ -54,13 +58,20 @@
   white-space: pre-wrap;
   flex-grow: 1;
   overflow-y: auto;
-  color: var(--text-color);
-  resize: none; /* サイズ変更不可 */
-  cursor: grab; /* 編集モードじゃない時はつかむカーソルにする */
-  background-color: var(--note-bg-color-variant); /* ★ ここを変更 ★ */
+  color: var(--text-color); /* 通常のテキストカラー */
+  resize: none;
+  cursor: grab;
+  background-color: transparent; /* 背景色を親要素から継承させる */
 }
 
-/* 編集モード時のテキストエリア (textarea) */
+.note-text-readonly-red {
+  color: var(--text-color-red);
+}
+
+.note-text-readonly-blue {
+  color: var(--text-color-blue);
+}
+
 .edit-textarea {
   font-family: 'Arial', sans-serif;
   font-size: 16px; 
@@ -73,7 +84,6 @@
   overflow-y: auto;
   color: var(--text-color);
 
-  /* デフォルトスタイルをリセット＆調整 */
   background-color: var(--edit-textarea-bg-color); 
   border: none;
   outline: none;
@@ -81,49 +91,74 @@
   width: 100%;
   height: 100%;
 
-  /* 編集中であることを示す控えめなスタイル (フォーカス時) */
   &:focus { 
     border: 1px dashed var(--border-color);
     box-shadow: 0 0 10px var(--shadow-color);
   }
 }
 
-.delete-button { 
-  position: absolute; /* 親要素 .note を基準に位置を決める */
-  top: 5px; /* 上からの位置 */
-  right: 5px; /* 右からの位置 */
-  background-color: var(--note-bg-color); /*ダークモード対応*/
-  border: 1px solid var(--border-color);   /*ダークモード対応*/
-  box-shadow: 2px 2px 5px var(--shadow-color); /*ダークモード対応*/
-  border: none;
-  border-radius: 50%; /* 丸いボタン */
+.edit-textarea-red {
+  background-color: var(--edit-textarea-bg-color-red);
+  color: var(--text-color-red);
+
+  &:focus { 
+    border: 1px dashed var(--border-color-red);
+    box-shadow: 0 0 10px var(--shadow-color-red);
+  }
+}
+
+.edit-textarea-blue {
+  background-color: var(--edit-textarea-bg-color-blue);
+  color: var(--text-color-blue);
+  
+  &:focus { 
+    border: 1px dashed var(--border-color-blue); /* 青にもフォーカススタイルを追加 */
+    box-shadow: 0 0 10px var(--shadow-color-blue);
+  }
+}
+
+/* 他のスタイルは変更なし */
+.delete-button {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background-color: var(--note-bg-color);
+  border: 1px solid var(--border-color);
+  box-shadow: 2px 2px 5px var(--shadow-color);
+  border-radius: 50%;
   width: 25px;
   height: 25px;
   font-size: 14px;
   cursor: pointer;
   display: flex;
-  align-items: center; /* 中央寄せ */
-  justify-content: center; /* 中央寄せ */
-  line-height: 1; /* 文字が中央に来るように */
-  padding: 0; /* 余計なパディングを削除 */
-  box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3); /* 小さな影もつける */
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+  box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+  z-index: 1002;
 }
 
-/* --- NoteInput.tsx --- */
-.note-input-container {
-  position: fixed;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 2000; /* 付箋より手前に表示 */
-  display: flex;
-  gap: 8px;
-  padding: 12px;
-  background-color: var(--card-bg-color);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  box-shadow: 0 4px 12px var(--shadow-color);
+
+.icon-container {
+    position: absolute; /* 親要素に対して絶対的な位置を決める */
+    bottom: 5px; /* 下から5pxの位置に置く */
+    right: 5px; /* 右から5pxの位置に置く */
+    width: 24px; /* アイコンの幅を24pxに固定 */
+    height: 24px; /* アイコンの高さを24pxに固定 */
+    border-radius: 50%; /* 縁を丸くして、丸にする */
+    overflow: hidden; /* はみ出した部分を隠す */
+    border: 1px solid #fff; /* 白い縁取りをつけて、目立たせる */
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    z-index: 1000; 
 }
+
+.user-icon {
+    width: 100%; /* 親要素の幅に合わせて100%にする */
+    height: 100%; /* 親要素の高さに合わせて100%にする */
+    object-fit: cover; /* 画像の縦横比を保ちつつ、枠いっぱいに表示する魔法 */
+}
+
 
 .note-input {
   width: 300px;
@@ -146,4 +181,80 @@
 
 .add-note-button:hover {
   background-color: #0056b3;
+}
+
+.delete-button {
+  color: #000;
+}
+
+/* リサイズハンドル用のスタイル */
+.react-resizable-handle {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    bottom: 0;
+    right: 0;
+    background: rgba(0, 0, 0, 0.2);
+    cursor: nwse-resize;
+    z-index: 1001; 
+    border-bottom-right-radius: 5px;
+}
+
+.react-resizable-handle-se { /* 南東（south-east）のハンドルを特に指定してる */
+    bottom: 0;
+    right: 0;
+    cursor: nwse-resize;
+}
+
+/* 返信1つ1つを囲むコンテナ */
+.reply {
+  display: flex; /* アイコンとテキストを横並びにする魔法 */
+  align-items: center; /* 上下中央にそろえる魔法 */
+  margin-top: 8px;
+  padding: 4px;
+  background-color: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+}
+
+/* 返信者のアイコンのスタイル */
+.reply-icon {
+  width: 24px; /* アイコンの幅 */
+  height: 24px; /* アイコンの高さ */
+  border-radius: 50%; /* アイコンをまん丸にするおまじない */
+  object-fit: cover; /* 画像が潰れないように、いい感じにトリミングしてくれる */
+  margin-right: 8px; /* アイコンとテキストの間に余白を作る */
+}
+
+/* 返信テキストのスタイル */
+.reply-text {
+  font-size: 14px;
+  color: #333;
+  margin: 0; /* 余計な余白を消す */
+  word-break: break-all; /* 長い文章でもはみ出さずに改行する */
+}
+
+/* --- (おまけ) 返信入力エリアのスタイル --- */
+.reply-input-area {
+  margin-top: 8px;
+}
+
+.reply-input-area textarea {
+  width: 100%;
+  height: 50px;
+  margin-bottom: 4px;
+}
+
+.note-read {
+  opacity: 0.6; /* ちょっと透明にして、完了感を出す */
+  transition: opacity 0.3s ease; /* ふんわり変化させる */
+}
+
+/* 既読チェックボックスのスタイル */
+.read-checkbox-container {
+  position: absolute;
+  top: 5px;
+  left: 5px; /* 左上に配置する例 */
+  cursor: pointer;
+  z-index: 10; /* 他の要素より手前に表示 */
+  font-size: 18px;
 }

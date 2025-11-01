@@ -1,5 +1,4 @@
 // NoteList.tsx
-import React from "react";
 import Note from "./Note";
 import type { NoteData } from "./index.d";
 

@@ -1,5 +1,4 @@
 // Header.tsx
-import React from 'react';
 
 /**
  * @filename Header.tsx

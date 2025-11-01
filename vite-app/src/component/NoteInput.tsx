@@ -26,11 +26,6 @@ export default function NoteInput({ onAddNote }: NoteInputProps){
 
     };
 
-    // 色の変更を処理する関数
-    const handleColorChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-        setColor(event.target.value); // 選択された色を更新
-    };
-
     // 追加ボタンがクリックされたときの処理
     const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault(); // フォームのデフォルトの送信動作（ページリロード）を防ぐ

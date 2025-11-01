@@ -1,0 +1,42 @@
+# GitHub Pagesに自動デプロイする神の設計図
+name: Deploy to GitHub Pages
+
+# どのタイミングで動かすか？
+on:
+  push:
+    branches:
+      - main  # ◀ "main" ブランチに push された時だけ動く
+
+# 実行する内容
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest # 実行環境
+    
+    steps:
+      # 1. まず、コードをチェックアウト (持ってくる)
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 2. Node.js 環境をセットアップ
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # 今イケてるLTSバージョンらしい
+
+      # 3. 依存パッケージをインストール
+      - name: Install dependencies
+        run: npm install
+
+      # 4. 【最重要】アプリをビルド
+      - name: Build
+        run: npm run build
+        env: # ◀◀◀ ここで「鍵」を注入する！！！
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      # 5. ビルド結果 (dist) を、GitHub Pages にデプロイ
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist # Viteのビルド結果フォルダ

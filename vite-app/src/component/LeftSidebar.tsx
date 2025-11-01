@@ -13,10 +13,11 @@ import '../styles/Note.css'; // Note.cssをインポートして、付箋のス�
 type LeftSidebarProps = {
     className?: string; // classNameを受け取れるようにする
     onIconUpload: (imageUrl: string) => void;
+    onTogglePdfViewer: () => void;
     dataNoPan?: boolean; // data-no-pan属性を受け取れるようにする
 };
 
-export default function LeftSidebar({ className, onIconUpload, dataNoPan }: LeftSidebarProps) {
+export default function LeftSidebar({ className, onIconUpload, onTogglePdfViewer, dataNoPan }: LeftSidebarProps) {
     // 赤い付箋のテンプレート
     const {
         attributes: redAttributes,
@@ -89,6 +90,14 @@ export default function LeftSidebar({ className, onIconUpload, dataNoPan }: Left
             
             <div className="w-full h-32 bg-gray-300 rounded-md mb-4 flex items-center justify-center text-gray-600 font-medium">色選択</div>
             <div className="w-full h-48 bg-gray-300 rounded-md flex items-center justify-center text-gray-600 font-medium">追加ツール</div>
+            <div className="mt-8">
+                <button 
+                    onClick={onTogglePdfViewer}
+                    className="w-full bg-gray-700 text-white font-bold py-2 px-4 rounded hover:bg-gray-600"
+                >
+                    PDFを開く
+                </button>
+            </div>
         </aside>
     );
 }

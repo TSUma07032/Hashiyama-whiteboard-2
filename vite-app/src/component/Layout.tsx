@@ -9,8 +9,9 @@ import NoteInput from './NoteInput'; // NoteInputをインポート
 import { DndContext, type DragEndEvent, type DragStartEvent, MouseSensor, useSensor, useSensors} from '@dnd-kit/core';
 import { nanoid } from "nanoid"; // nanoidをインポート(TODO: firebaseが付与するIDに変更予定)
 import type { NoteData, ReplyData } from './index.d'; // NoteData型をインポート
+import PDFViewer from './PDFViewer'; // PDFViewerコンポーネントをインポート
 import '../styles/layout.css';
-
+import { supabase } from './supabaseClient';
 
 /**
  * @filename Layout.tsx
@@ -33,6 +34,8 @@ export default function Layout() {
     const [isPanning, setIsPanning] = useState(false);
     const panStartRef = useRef({ x: 0, y: 0 });
 
+    const [showPdfViewer, setShowPdfViewer] = useState(false);
+
     const viewpointRef = useRef(viewpoint);
     useEffect(() => {
         viewpointRef.current = viewpoint;
@@ -40,6 +43,87 @@ export default function Layout() {
 
     // ↓↓↓ ドラッグ開始時のカーソル位置を記憶するための箱を追加！ ↓↓↓
     const dragStartCursorRef = useRef({ x: 0, y: 0 });
+
+    /**
+     * アプリ起動時に、Supabaseから全ノートデータを読み込む
+     */
+    useEffect(() => {
+        // --- 1. まず、昨日までの「全件取得」はそのままやる！ ---
+        const fetchNotes = async () => {
+            console.log("Supabaseからノートデータの召喚を開始する……！");
+            try {
+                const { data, error } = await supabase
+                    .from('notes')
+                    .select('*')
+                    .order('created_at', { ascending: true });
+
+                if (error) throw error;
+
+                if (data) {
+                    setNotes(data as NoteData[]);
+                    console.log("初期ロード召喚成功！ノートデータ:", data);
+                }
+            } catch (error) {
+                console.error('ノート召喚地獄:', error);
+                alert(`ノートの初期読み込みに失敗したぞ、ざぁこ♡: ${(error as Error).message}`);
+            }
+        };
+        
+        fetchNotes(); // ◀ まずは1回、全件取得を実行！
+
+        // --- 2. ここからが本番！「神の目（監視）」を開始する！ ---
+        console.log("リアルタイム監視を開始……！( ｰ`дｰ´)ｷﾘｯ");
+        const channel = supabase.channel('notes-realtime-channel'); // チャンネル名は適当でOK
+
+        const subscription = channel
+            .on(
+                'postgres_changes', // DBの変更を監視！
+                { 
+                    event: '*',       // INSERT, UPDATE, DELETE 全部！
+                    schema: 'public', // publicスキーマの
+                    table: 'notes'    // 'notes' テーブルを
+                },
+                (payload) => { // ◀ 変更があったら、この関数が自動で動く！
+                    console.log('リアルタイム通知！', payload);
+
+                    if (payload.eventType === 'INSERT') {
+                        // 誰かが「追加」した
+                        const newNote = payload.new as NoteData;
+                        // ローカルstate（手元）にも追加
+                        setNotes((prevNotes) => [...prevNotes, newNote]);
+                    }
+
+                    if (payload.eventType === 'UPDATE') {
+                        // 誰かが「更新（移動・編集・返信）」した
+                        const updatedNote = payload.new as NoteData;
+                        // ローカルstate（手元）も更新
+                        setNotes((prevNotes) => 
+                            prevNotes.map((note) => 
+                                note.id === updatedNote.id ? updatedNote : note
+                            )
+                        );
+                    }
+
+                    if (payload.eventType === 'DELETE') {
+                        // 誰かが「削除」した
+                        const deletedNoteId = payload.old.id as string;
+                        // ローカルstate（手元）からも削除
+                        setNotes((prevNotes) => 
+                            prevNotes.filter((note) => note.id !== deletedNoteId)
+                        );
+                    }
+                }
+            )
+            .subscribe(); // 監視スタート
+
+        // 3. クリーンアップ関数
+        // このコンポーネントが消えるとき、監視もやめないとメモリリークで死ぬ
+        return () => {
+            console.log("リアルタイム監視を終了します。");
+            supabase.removeChannel(channel);
+        };
+
+    }, []); // この「空の配列」は絶対に変えない!初回1回だけ実行！
 
     const mouseSensor = useSensor(MouseSensor, {
         activationConstraint: {
@@ -66,53 +150,126 @@ export default function Layout() {
     };
 
     // ノート追加処理
-    const handleAddNote = (text: string, color: string, x?: number, y?: number, icon?: string) => {
-        const newNote: NoteData = {
-            id: nanoid(),
+    const handleAddNote = async (text: string, color: string, x?: number, y?: number) => {
+        // 1. DBに挿入するオブジェクトを定義 (id はDBが自動生成するからいらない)
+        const noteToInsert = {
             text,
-            // 座標計算もシンプルにした
             x: x !== undefined ? x : DEFAULT_NOTE_POSITION.x,
             y: y !== undefined ? y : DEFAULT_NOTE_POSITION.y,
             width: DEFAULT_NOTE_SIZE.width,
             height: DEFAULT_NOTE_SIZE.height,
             color: color,
-            icon: uploadedIcon,
+            icon: uploadedIcon, // stateから取得
+            isRead: false, // デフォルト
+            replies: [], // デフォルト
         };
-        setNotes((prevNotes) => [...prevNotes, newNote]);
+        
+        try {
+            // 2. Supabase DBにガチで挿入！
+            //    .select() で、挿入したデータ丸ごと（新しいIDとか）を返してもらう！
+            const { data, error } = await supabase
+                .from('notes')
+                .insert(noteToInsert)
+                .select(); // これが重要！
+
+            if (error) {
+                throw error; // 失敗したら即エラー
+            }
+
+            // 3. 成功したら、DBから返ってきたデータをローカルstateにも反映！
+            if (data) {
+                const newNoteFromDB = data[0] as NoteData; // 型を教える
+                setNotes((prevNotes) => [...prevNotes, newNoteFromDB]);
+                console.log('DBにノート追加成功', newNoteFromDB);
+            }
+
+        } catch (error) {
+            console.error('ノート追加:', error);
+            alert(`ノート追加に失敗: ${(error as Error).message}`);
+        }
     };
 
-    const handleResizeNote = (id: string, newWidth: number, newHeight: number) => {
-        setNotes((prevNotes) =>
-            prevNotes.map((note) =>
-                note.id === id ? { ...note, width: newWidth, height: newHeight } : note
-            )
-        );
+    // ◀◀◀ "async" を追加！
+    const handleResizeNote = async (id: string, newWidth: number, newHeight: number) => {
+        try {
+            // 1. DBの 'width' と 'height' カラムを更新
+            const { error } = await supabase
+                .from('notes')
+                .update({ width: newWidth, height: newHeight }) // 2つ同時更新
+                .eq('id', id);
+
+            if (error) throw error;
+
+            // 2. DB更新が成功したら、ローカルstateも更新
+            setNotes((prevNotes) =>
+                prevNotes.map((note) =>
+                    note.id === id ? { ...note, width: newWidth, height: newHeight } : note
+                )
+            );
+        } catch (error) {
+            console.error('リサイズ地獄:', error);
+            alert(`リサイズに失敗した: ${(error as Error).message}`);
+        }
     };
 
     // ノート削除処理
-    const handleDelete = (idToDelete: string) => {
-        setNotes((prevNotes) => prevNotes.filter((note) => note.id !== idToDelete));
-        console.log(`ノート (id: ${idToDelete}) を削除しました。`);
+    const handleDelete = async (idToDelete: string) => {
+        try {
+            // 1. まず、Supabase DBから削除！
+            //    .eq() でidが 'idToDelete' と等しいヤツを指定する！
+            const { error } = await supabase
+                .from('notes')
+                .delete()
+                .eq('id', idToDelete); // ◀◀◀ これが WHERE id = '...' って意味
+
+            if (error) {
+                throw error; // 失敗したら即エラー
+            }
+
+            // 2. DBから無事に消せたら、ローカルstateからも削除
+            setNotes((prevNotes) => prevNotes.filter((note) => note.id !== idToDelete));
+            console.log(`ノート (id: ${idToDelete}) をDBから削除成功`);
+
+        } catch (error) {
+            console.error('ノート削除:', error);
+            alert(`ノート削除に失敗した: ${(error as Error).message}`);
+        }
     };
 
     // ノート編集処理
-    const handleEditNote = (idToEdit: string, newText: string) => {
-        setNotes((prevNotes) =>
-            prevNotes.map((note) =>
-                note.id === idToEdit ? { ...note, text: newText } : note
-            )
-        );
+    const handleEditNote = async (idToEdit: string, newText: string) => {
+        try {
+            // 1. DBの 'text' カラムを更新
+            const { error } = await supabase
+                .from('notes')
+                .update({ text: newText }) // 更新する内容
+                .eq('id', idToEdit);      // 対象のID
+
+            if (error) throw error;
+
+            // 2. DB更新が成功したら、ローカルstateも更新
+            setNotes((prevNotes) =>
+                prevNotes.map((note) =>
+                    note.id === idToEdit ? { ...note, text: newText } : note
+                )
+            );
+        } catch (error) {
+            console.error('ノート編集:', error);
+            alert(`編集に失敗: ${(error as Error).message}`);
+        }
     };
 
     // ドラッグ終了時のハンドラ
-    const handleDragEnd = (event: DragEndEvent) => {
+    const handleDragEnd = async (event: DragEndEvent) => {
         const { active, delta } = event;
+        const activeId = active.id as string;
 
         // activeId が null でない、つまり何かしらの要素がドラッグされた場合
         if (activeId) {
             const activeData = active.data.current as { type?: string, color?: string, text?: string };
 
              if (activeData?.type === 'note-template') {
+                // テンプレートから新規ドロップした場合
                 if (mainContentRef.current && event.active.rect.current.translated) {
                     const mainContentRect = mainContentRef.current.getBoundingClientRect();
                     
@@ -130,15 +287,37 @@ export default function Layout() {
                     const worldX = (dropX - currentViewpoint.x) / scale;
                     const worldY = (dropY - currentViewpoint.y) / scale;
 
-                    handleAddNote(activeData.text || '', activeData.color || 'r', worldX, worldY, uploadedIcon || undefined);
+                    // 4. 付箋を追加する
+                    await handleAddNote(activeData.text || '', activeData.color || 'r', worldX, worldY);
                 }
             } else {
-                // 既存の付箋の移動ロジック
-                setNotes((prevNotes) =>
-                    prevNotes.map((note) =>
-                        note.id === active.id ? { ...note, x: note.x + delta.x / scale, y: note.y + delta.y / scale } : note
-                    )
-                );
+                // 既存の付箋を移動した場合 ◀◀◀ ココが本番！
+                // 1. まず、ローカルstateから「移動後の座標」を計算する
+                const currentNote = notes.find(n => n.id === activeId);
+                if (!currentNote) return; // 対象がねーぞ
+                    
+                const newX = currentNote.x + delta.x / scale;
+                const newY = currentNote.y + delta.y / scale;
+
+                try {
+                    // 2. DBの 'x' と 'y' カラムを更新！
+                    const { error } = await supabase
+                        .from('notes')
+                        .update({ x: newX, y: newY })
+                        .eq('id', activeId);
+                    
+                    if (error) throw error;
+
+                    // 3. DB更新が成功したら、ローカルstateも更新！
+                    setNotes((prevNotes) =>
+                        prevNotes.map((note) =>
+                            note.id === active.id ? { ...note, x: newX, y: newY } : note
+                        )
+                    );
+                } catch (error) {
+                    console.error('ノート移動:', error);
+                    alert(`ノートの移動に失敗した: ${(error as Error).message}`);
+                }
             }
         }
         setActiveId(null);
@@ -154,34 +333,76 @@ export default function Layout() {
      * @param noteId - 返信する対象の付箋ID
      * @param replyText - 返信内容
      */
-    const handleAddReply = (noteId: string, replyText: string) => {
+    // ◀◀◀ "async" を追加！
+    const handleAddReply = async (noteId: string, replyText: string) => {
+        // 1. 新しい返信オブジェクトを作成（これはアンタの元のコード通り。完璧！）
         const newReply: ReplyData = {
             id: nanoid(),
             noteId: noteId,
             text: replyText,
-            icon: uploadedIcon, // 現在設定されてるアイコンを使う
-            createdAt: new Date(),
+            icon: uploadedIcon,
+            createdAt: new Date(), // Supabaseが勝手にISODate形式に変換してくれる
         };
 
-        setNotes(prevNotes => 
-            prevNotes.map(note => {
-                if (note.id === noteId) {
-                    // 既存のreplies配列に新しい返信を追加する
-                    const updatedReplies = note.replies ? [...note.replies, newReply] : [newReply];
-                    return { ...note, replies: updatedReplies };
-                }
-                return note;
-            })
-        );
-        console.log(`付箋 (id: ${noteId}) に返信を追加しました: ${replyText}`);
+        // 2. ローカルstateから「今の返信配列」を取得
+        const noteToUpdate = notes.find(n => n.id === noteId);
+        if (!noteToUpdate) return;
+
+        // 3. 「今の返信配列」に「新しい返信」を追加した、“完全版”の配列を作る
+        const updatedReplies = noteToUpdate.replies ? [...noteToUpdate.replies, newReply] : [newReply];
+
+        try {
+            // 4. DBの 'replies' カラムを、“完全版”の配列で丸ごと上書き！
+            const { error } = await supabase
+                .from('notes')
+                .update({ replies: updatedReplies })
+                .eq('id', noteId);
+            
+            if (error) throw error;
+            
+            // 5. DB更新が成功したら、ローカルstateも“完全版”の配列で更新
+            setNotes(prevNotes => 
+                prevNotes.map(note => {
+                    if (note.id === noteId) {
+                        return { ...note, replies: updatedReplies };
+                    }
+                    return note;
+                })
+            );
+            console.log(`付箋 (id: ${noteId}) に返信をDB保存成功!`);
+        } catch (error) {
+            console.error('返信追加:', error);
+            alert(`返信の追加に失敗した: ${(error as Error).message}`);
+        }
     };
 
-    const handleToggleReadStatus = (noteId: string) => {
-        setNotes(prevNotes =>
-            prevNotes.map(note =>
-                note.id === noteId ? { ...note, isRead: !note.isRead } : note
-            )
-        );
+    // ◀◀◀ "async" を追加！
+    const handleToggleReadStatus = async (noteId: string) => {
+        // 1. まず、ローカルstateから「今の状態」を見つけて、「新しい状態」を計算する
+        const noteToUpdate = notes.find(n => n.id === noteId);
+        if (!noteToUpdate) return; // 対象が見つからなかったら即終了
+        
+        const newStatus = !noteToUpdate.isRead; // 新しい状態を先に確定！
+
+        try {
+            // 2. DBの 'isRead' カラムを「新しい状態」で更新
+            const { error } = await supabase
+                .from('notes')
+                .update({ isRead: newStatus })
+                .eq('id', noteId);
+            
+            if (error) throw error;
+
+            // 3. DB更新が成功したら、ローカルstateも「新しい状態」で更新
+            setNotes(prevNotes =>
+                prevNotes.map(note =>
+                    note.id === noteId ? { ...note, isRead: newStatus } : note
+                )
+            );
+        } catch (error) {
+            console.error('既読トグル:', error);
+            alert(`既読状態の更新に失敗した: ${(error as Error).message}`);
+        }
     };
 
     const handleZoomIn = () => {
@@ -250,6 +471,7 @@ export default function Layout() {
                 <LeftSidebar 
                     className="left-sidebar-area" 
                     onIconUpload={setUploadedIcon}
+                    onTogglePdfViewer={() => setShowPdfViewer(prev => !prev)}
                     data-no-pan="true"
                 />
                 <MainContent
@@ -270,6 +492,13 @@ export default function Layout() {
                     </span>
                     <button onClick={handleZoomIn} className="zoom-button">+</button>
                 </div>
+                {showPdfViewer && (
+                    <div className="modal-overlay" onClick={() => setShowPdfViewer(false)}>
+                        <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                            <PDFViewer />
+                        </div>
+                    </div>
+                )}
             </div>
         </DndContext>
     );

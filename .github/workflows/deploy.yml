@@ -26,6 +26,7 @@ jobs:
       # 3. 依存パッケージをインストール
       - name: Install dependencies
         run: npm install
+        working-directory: ./vite-app
 
       # 4. 【最重要】アプリをビルド
       - name: Build
@@ -33,10 +34,11 @@ jobs:
         env: # ◀◀◀ ここで「鍵」を注入する！！！
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        working-directory: ./vite-app
 
       # 5. ビルド結果 (dist) を、GitHub Pages にデプロイ
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist # Viteのビルド結果フォルダ
+          publish_dir: ./vite-app/dist # Viteのビルド結果フォルダ

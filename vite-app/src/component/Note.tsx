@@ -130,7 +130,7 @@ const Note = forwardRef<HTMLDivElement, NoteProps>(({ note, onDelete, onEdit, on
     }, [saveAndExitEditMode]);
 
     // サイズ変更時のハンドラ
-    const  handleResize = useCallback((e: SyntheticEvent, data: ResizeCallbackData) => {
+    const  handleResize = useCallback((_e: SyntheticEvent, data: ResizeCallbackData) => {
         const { size } = data;
         setNoteSize(size);
         onResize(note.id, size.width, size.height);

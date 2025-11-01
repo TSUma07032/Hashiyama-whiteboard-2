@@ -1,5 +1,5 @@
 // LeftSidebar.tsx
-import React, { type CSSProperties } from 'react';
+import { type CSSProperties } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import clsx from 'clsx';
 import ImageUploader from './ImageUploader';

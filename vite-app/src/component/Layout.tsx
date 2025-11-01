@@ -23,10 +23,8 @@ const DEFAULT_NOTE_SIZE = { width: 200, height: 100 };
 
 export default function Layout() {
     const [notes, setNotes] = useState<NoteData[]>([]);
-    const [activeId, setActiveId] = useState<string | null>(null);
-    const [isDroppingNoteTemplate, setIsDroppingNoteTemplate] = useState(false);
+    const [_activeId, setActiveId] = useState<string | null>(null);
     const mainContentRef = useRef<HTMLElement>(null); 
-    const startPositionRef = useRef({ x: 0, y: 0 });
     const [uploadedIcon, setUploadedIcon] = useState<string | null>(null);
     const [scale, setScale] = useState<number>(1);
 
@@ -73,55 +71,6 @@ export default function Layout() {
 
         // --- 2. ここからが本番！「神の目（監視）」を開始する！ ---
         console.log("リアルタイム監視を開始……！( ｰ`дｰ´)ｷﾘｯ");
-        const channel = supabase.channel('notes-realtime-channel'); // チャンネル名は適当でOK
-
-        const subscription = channel
-            .on(
-                'postgres_changes', // DBの変更を監視！
-                { 
-                    event: '*',       // INSERT, UPDATE, DELETE 全部！
-                    schema: 'public', // publicスキーマの
-                    table: 'notes'    // 'notes' テーブルを
-                },
-                (payload) => { // ◀ 変更があったら、この関数が自動で動く！
-                    console.log('リアルタイム通知！', payload);
-
-                    if (payload.eventType === 'INSERT') {
-                        // 誰かが「追加」した
-                        const newNote = payload.new as NoteData;
-                        // ローカルstate（手元）にも追加
-                        setNotes((prevNotes) => [...prevNotes, newNote]);
-                    }
-
-                    if (payload.eventType === 'UPDATE') {
-                        // 誰かが「更新（移動・編集・返信）」した
-                        const updatedNote = payload.new as NoteData;
-                        // ローカルstate（手元）も更新
-                        setNotes((prevNotes) => 
-                            prevNotes.map((note) => 
-                                note.id === updatedNote.id ? updatedNote : note
-                            )
-                        );
-                    }
-
-                    if (payload.eventType === 'DELETE') {
-                        // 誰かが「削除」した
-                        const deletedNoteId = payload.old.id as string;
-                        // ローカルstate（手元）からも削除
-                        setNotes((prevNotes) => 
-                            prevNotes.filter((note) => note.id !== deletedNoteId)
-                        );
-                    }
-                }
-            )
-            .subscribe(); // 監視スタート
-
-        // 3. クリーンアップ関数
-        // このコンポーネントが消えるとき、監視もやめないとメモリリークで死ぬ
-        return () => {
-            console.log("リアルタイム監視を終了します。");
-            supabase.removeChannel(channel);
-        };
 
     }, []); // この「空の配列」は絶対に変えない!初回1回だけ実行！
 
@@ -323,10 +272,6 @@ export default function Layout() {
         setActiveId(null);
     };
 
-    const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
-        const newScale = e.deltaY > 0 ? scale * 0.9 : scale * 1.1; // ズームイン・ズームアウトの計算
-        setScale(Math.min(Math.max(0.5, newScale), 2)); // 最小0.5倍、最大2倍に制限する
-    };
 
     /**
      * 返信を追加する処理

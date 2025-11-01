@@ -48,37 +48,82 @@ export default function Layout() {
      * アプリ起動時に、Supabaseから全ノートデータを読み込む
      */
     useEffect(() => {
-        // 1. データをぶっこ抜くための非同期関数を定義
+        // --- 1. まず、昨日までの「全件取得」はそのままやる！ ---
         const fetchNotes = async () => {
-            console.log("Supabaseからノートデータを呼び出す");
+            console.log("Supabaseからノートデータの召喚を開始する……！");
             try {
-                // 2. 'notes' テーブルから全データ (*) を select！
-                //    作成日時 (created_at) の昇順 (ascending: true) で並べる！
                 const { data, error } = await supabase
                     .from('notes')
-                    .select('*') // 全カラムくれ
-                    .order('created_at', { ascending: true }); // 古い順に並べる
+                    .select('*')
+                    .order('created_at', { ascending: true });
 
-                if (error) {
-                    throw error; // 失敗したら即エラー
-                }
+                if (error) throw error;
 
-                // 3. 取得したデータを、ローカルstate (setNotes) にブチ込む！
                 if (data) {
-                    setNotes(data as NoteData[]); // ◀◀◀ ここで初めて画面に反映される！
-                    console.log("召喚成功！ノートデータ:", data);
+                    setNotes(data as NoteData[]);
+                    console.log("初期ロード召喚成功！ノートデータ:", data);
                 }
-                
             } catch (error) {
-                console.error('ノート召喚:', error);
-                alert(`ノートの読み込みに失敗した: ${(error as Error).message}`);
+                console.error('ノート召喚地獄:', error);
+                alert(`ノートの初期読み込みに失敗したぞ、ざぁこ♡: ${(error as Error).message}`);
             }
         };
+        
+        fetchNotes(); // ◀ まずは1回、全件取得を実行！
 
-        // 4. 関数を実行！
-        fetchNotes();
+        // --- 2. ここからが本番！「神の目（監視）」を開始する！ ---
+        console.log("リアルタイム監視を開始……！( ｰ`дｰ´)ｷﾘｯ");
+        const channel = supabase.channel('notes-realtime-channel'); // チャンネル名は適当でOK
 
-    }, []); // ◀◀◀ 【超絶重要】第2引数の配列を「空っぽ」にしろ！
+        const subscription = channel
+            .on(
+                'postgres_changes', // DBの変更を監視！
+                { 
+                    event: '*',       // INSERT, UPDATE, DELETE 全部！
+                    schema: 'public', // publicスキーマの
+                    table: 'notes'    // 'notes' テーブルを
+                },
+                (payload) => { // ◀ 変更があったら、この関数が自動で動く！
+                    console.log('リアルタイム通知！', payload);
+
+                    if (payload.eventType === 'INSERT') {
+                        // 誰かが「追加」した
+                        const newNote = payload.new as NoteData;
+                        // ローカルstate（手元）にも追加
+                        setNotes((prevNotes) => [...prevNotes, newNote]);
+                    }
+
+                    if (payload.eventType === 'UPDATE') {
+                        // 誰かが「更新（移動・編集・返信）」した
+                        const updatedNote = payload.new as NoteData;
+                        // ローカルstate（手元）も更新
+                        setNotes((prevNotes) => 
+                            prevNotes.map((note) => 
+                                note.id === updatedNote.id ? updatedNote : note
+                            )
+                        );
+                    }
+
+                    if (payload.eventType === 'DELETE') {
+                        // 誰かが「削除」した
+                        const deletedNoteId = payload.old.id as string;
+                        // ローカルstate（手元）からも削除
+                        setNotes((prevNotes) => 
+                            prevNotes.filter((note) => note.id !== deletedNoteId)
+                        );
+                    }
+                }
+            )
+            .subscribe(); // 監視スタート
+
+        // 3. クリーンアップ関数
+        // このコンポーネントが消えるとき、監視もやめないとメモリリークで死ぬ
+        return () => {
+            console.log("リアルタイム監視を終了します。");
+            supabase.removeChannel(channel);
+        };
+
+    }, []); // この「空の配列」は絶対に変えない!初回1回だけ実行！
 
     const mouseSensor = useSensor(MouseSensor, {
         activationConstraint: {
@@ -144,12 +189,27 @@ export default function Layout() {
         }
     };
 
-    const handleResizeNote = (id: string, newWidth: number, newHeight: number) => {
-        setNotes((prevNotes) =>
-            prevNotes.map((note) =>
-                note.id === id ? { ...note, width: newWidth, height: newHeight } : note
-            )
-        );
+    // ◀◀◀ "async" を追加！
+    const handleResizeNote = async (id: string, newWidth: number, newHeight: number) => {
+        try {
+            // 1. DBの 'width' と 'height' カラムを更新
+            const { error } = await supabase
+                .from('notes')
+                .update({ width: newWidth, height: newHeight }) // 2つ同時更新
+                .eq('id', id);
+
+            if (error) throw error;
+
+            // 2. DB更新が成功したら、ローカルstateも更新
+            setNotes((prevNotes) =>
+                prevNotes.map((note) =>
+                    note.id === id ? { ...note, width: newWidth, height: newHeight } : note
+                )
+            );
+        } catch (error) {
+            console.error('リサイズ地獄:', error);
+            alert(`リサイズに失敗した: ${(error as Error).message}`);
+        }
     };
 
     // ノート削除処理
@@ -177,23 +237,39 @@ export default function Layout() {
     };
 
     // ノート編集処理
-    const handleEditNote = (idToEdit: string, newText: string) => {
-        setNotes((prevNotes) =>
-            prevNotes.map((note) =>
-                note.id === idToEdit ? { ...note, text: newText } : note
-            )
-        );
+    const handleEditNote = async (idToEdit: string, newText: string) => {
+        try {
+            // 1. DBの 'text' カラムを更新
+            const { error } = await supabase
+                .from('notes')
+                .update({ text: newText }) // 更新する内容
+                .eq('id', idToEdit);      // 対象のID
+
+            if (error) throw error;
+
+            // 2. DB更新が成功したら、ローカルstateも更新
+            setNotes((prevNotes) =>
+                prevNotes.map((note) =>
+                    note.id === idToEdit ? { ...note, text: newText } : note
+                )
+            );
+        } catch (error) {
+            console.error('ノート編集:', error);
+            alert(`編集に失敗: ${(error as Error).message}`);
+        }
     };
 
     // ドラッグ終了時のハンドラ
     const handleDragEnd = async (event: DragEndEvent) => {
         const { active, delta } = event;
+        const activeId = active.id as string;
 
         // activeId が null でない、つまり何かしらの要素がドラッグされた場合
         if (activeId) {
             const activeData = active.data.current as { type?: string, color?: string, text?: string };
 
              if (activeData?.type === 'note-template') {
+                // テンプレートから新規ドロップした場合
                 if (mainContentRef.current && event.active.rect.current.translated) {
                     const mainContentRect = mainContentRef.current.getBoundingClientRect();
                     
@@ -215,12 +291,33 @@ export default function Layout() {
                     await handleAddNote(activeData.text || '', activeData.color || 'r', worldX, worldY);
                 }
             } else {
-                // 既存の付箋の移動ロジック
-                setNotes((prevNotes) =>
-                    prevNotes.map((note) =>
-                        note.id === active.id ? { ...note, x: note.x + delta.x / scale, y: note.y + delta.y / scale } : note
-                    )
-                );
+                // 既存の付箋を移動した場合 ◀◀◀ ココが本番！
+                // 1. まず、ローカルstateから「移動後の座標」を計算する
+                const currentNote = notes.find(n => n.id === activeId);
+                if (!currentNote) return; // 対象がねーぞ
+                    
+                const newX = currentNote.x + delta.x / scale;
+                const newY = currentNote.y + delta.y / scale;
+
+                try {
+                    // 2. DBの 'x' と 'y' カラムを更新！
+                    const { error } = await supabase
+                        .from('notes')
+                        .update({ x: newX, y: newY })
+                        .eq('id', activeId);
+                    
+                    if (error) throw error;
+
+                    // 3. DB更新が成功したら、ローカルstateも更新！
+                    setNotes((prevNotes) =>
+                        prevNotes.map((note) =>
+                            note.id === active.id ? { ...note, x: newX, y: newY } : note
+                        )
+                    );
+                } catch (error) {
+                    console.error('ノート移動:', error);
+                    alert(`ノートの移動に失敗した: ${(error as Error).message}`);
+                }
             }
         }
         setActiveId(null);
@@ -236,34 +333,76 @@ export default function Layout() {
      * @param noteId - 返信する対象の付箋ID
      * @param replyText - 返信内容
      */
-    const handleAddReply = (noteId: string, replyText: string) => {
+    // ◀◀◀ "async" を追加！
+    const handleAddReply = async (noteId: string, replyText: string) => {
+        // 1. 新しい返信オブジェクトを作成（これはアンタの元のコード通り。完璧！）
         const newReply: ReplyData = {
             id: nanoid(),
             noteId: noteId,
             text: replyText,
-            icon: uploadedIcon, // 現在設定されてるアイコンを使う
-            createdAt: new Date(),
+            icon: uploadedIcon,
+            createdAt: new Date(), // Supabaseが勝手にISODate形式に変換してくれる
         };
 
-        setNotes(prevNotes => 
-            prevNotes.map(note => {
-                if (note.id === noteId) {
-                    // 既存のreplies配列に新しい返信を追加する
-                    const updatedReplies = note.replies ? [...note.replies, newReply] : [newReply];
-                    return { ...note, replies: updatedReplies };
-                }
-                return note;
-            })
-        );
-        console.log(`付箋 (id: ${noteId}) に返信を追加しました: ${replyText}`);
+        // 2. ローカルstateから「今の返信配列」を取得
+        const noteToUpdate = notes.find(n => n.id === noteId);
+        if (!noteToUpdate) return;
+
+        // 3. 「今の返信配列」に「新しい返信」を追加した、“完全版”の配列を作る
+        const updatedReplies = noteToUpdate.replies ? [...noteToUpdate.replies, newReply] : [newReply];
+
+        try {
+            // 4. DBの 'replies' カラムを、“完全版”の配列で丸ごと上書き！
+            const { error } = await supabase
+                .from('notes')
+                .update({ replies: updatedReplies })
+                .eq('id', noteId);
+            
+            if (error) throw error;
+            
+            // 5. DB更新が成功したら、ローカルstateも“完全版”の配列で更新
+            setNotes(prevNotes => 
+                prevNotes.map(note => {
+                    if (note.id === noteId) {
+                        return { ...note, replies: updatedReplies };
+                    }
+                    return note;
+                })
+            );
+            console.log(`付箋 (id: ${noteId}) に返信をDB保存成功!`);
+        } catch (error) {
+            console.error('返信追加:', error);
+            alert(`返信の追加に失敗した: ${(error as Error).message}`);
+        }
     };
 
-    const handleToggleReadStatus = (noteId: string) => {
-        setNotes(prevNotes =>
-            prevNotes.map(note =>
-                note.id === noteId ? { ...note, isRead: !note.isRead } : note
-            )
-        );
+    // ◀◀◀ "async" を追加！
+    const handleToggleReadStatus = async (noteId: string) => {
+        // 1. まず、ローカルstateから「今の状態」を見つけて、「新しい状態」を計算する
+        const noteToUpdate = notes.find(n => n.id === noteId);
+        if (!noteToUpdate) return; // 対象が見つからなかったら即終了
+        
+        const newStatus = !noteToUpdate.isRead; // 新しい状態を先に確定！
+
+        try {
+            // 2. DBの 'isRead' カラムを「新しい状態」で更新
+            const { error } = await supabase
+                .from('notes')
+                .update({ isRead: newStatus })
+                .eq('id', noteId);
+            
+            if (error) throw error;
+
+            // 3. DB更新が成功したら、ローカルstateも「新しい状態」で更新
+            setNotes(prevNotes =>
+                prevNotes.map(note =>
+                    note.id === noteId ? { ...note, isRead: newStatus } : note
+                )
+            );
+        } catch (error) {
+            console.error('既読トグル:', error);
+            alert(`既読状態の更新に失敗した: ${(error as Error).message}`);
+        }
     };
 
     const handleZoomIn = () => {

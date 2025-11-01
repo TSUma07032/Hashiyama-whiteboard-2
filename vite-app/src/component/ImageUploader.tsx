@@ -1,5 +1,5 @@
 // ImageUploader.tsx
-import React, { useState, useRef, type ChangeEvent } from 'react';
+import { useState, useRef, type ChangeEvent } from 'react';
 import { supabase } from './supabaseClient'; // 
 import { nanoid } from 'nanoid'; // ファイル名が被らないためのおまじない
 

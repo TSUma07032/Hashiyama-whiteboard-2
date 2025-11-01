@@ -1,6 +1,5 @@
 // RightSidebar.tsx
-import React from 'react';
-import type { NoteData, ReplyData } from './index.d'; 
+import type { NoteData} from './index.d'; 
 import { useState } from 'react';
 import clsx from 'clsx';
 import '../styles/RightSidebar.css';

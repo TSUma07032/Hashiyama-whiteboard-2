@@ -68,9 +68,56 @@ export default function Layout() {
         };
         
         fetchNotes(); // ◀ まずは1回、全件取得を実行！
-
         // --- 2. ここからが本番！「神の目（監視）」を開始する！ ---
         console.log("リアルタイム監視を開始……！( ｰ`дｰ´)ｷﾘｯ");
+        const channel = supabase.channel('notes-realtime-channel'); // チャンネル名は適当でOK
+
+        channel // ◀ "const subscription =" は消したよな！？
+            .on(
+                'postgres_changes', // ◀ DBの変更を監視しろ！
+                { 
+                    event: '*',       // ◀ INSERT, UPDATE, DELETE 全部！
+                    schema: 'public', // ◀ publicスキーマの
+                    table: 'notes'    // ◀ 'notes' テーブルをだ！
+                },
+                (payload) => { // ◀ 変更があったら、この関数が自動で動く！
+                    console.log('リアルタイム通知キタ！', payload);
+
+                    if (payload.eventType === 'INSERT') {
+                        // 誰かが「追加」した
+                        const newNote = payload.new as NoteData;
+                        // ローカルstate（手元）にも追加
+                        setNotes((prevNotes) => [...prevNotes, newNote]);
+                    }
+
+                    if (payload.eventType === 'UPDATE') {
+                        // 誰かが「更新（移動・編集・返信）」した
+                        const updatedNote = payload.new as NoteData;
+                        // ローカルstate（手元）も更新
+                        setNotes((prevNotes) => 
+                            prevNotes.map((note) => 
+                                note.id === updatedNote.id ? updatedNote : note
+                            )
+                        );
+                    }
+
+                    if (payload.eventType === 'DELETE') {
+                        // 誰かが「削除」した
+                        const deletedNoteId = payload.old.id as string;
+                        // ローカルstate（手元）からも削除
+                        setNotes((prevNotes) => 
+                            prevNotes.filter((note) => note.id !== deletedNoteId)
+                        );
+                    }
+                }
+            )
+            .subscribe(); // ◀ 監視スタート！
+
+        // 3. 【超絶重要】クリーンアップ関数
+        return () => {
+            console.log("リアルタイム監視を終了します。");
+            supabase.removeChannel(channel);
+        };
 
     }, []); // この「空の配列」は絶対に変えない!初回1回だけ実行！
 

@@ -6,6 +6,7 @@ import { useDraggable } from '@dnd-kit/core';
 import clsx from 'clsx';
 import { ResizableBox, type ResizeCallbackData  } from 'react-resizable';
 import type { SyntheticEvent} from 'react';
+import { Document, Page } from 'react-pdf';
 
 /**
  * @filename Note.tsx
@@ -177,6 +178,7 @@ const Note = forwardRef<HTMLDivElement, NoteProps>(({ note, onDelete, onEdit, on
                     'note-red': note.color === 'r',
                     'note-blue': note.color === 'b',
                     'note-read': note.isRead, // ← これを追加！
+                    'note-pdf': note.type === 'pdf' // 一応
                 })}
                 {...(!isEditing ? attributes : {})}
                 {...(!isEditing ? listeners : {})}
@@ -184,19 +186,33 @@ const Note = forwardRef<HTMLDivElement, NoteProps>(({ note, onDelete, onEdit, on
                 onMouseUp={!isEditing ? handleMouseUp : undefined}
                 data-note-id={note.id}
             >
-                {isEditing ? (
-                    <textarea
-                        ref={textareaRef}
-                        className={clsx('edit-textarea', {
-                            'edit-textarea-red': note.color === 'r',
-                            'edit-textarea-blue': note.color === 'b',
-                        })}
-                        value={editText}
-                        onChange={(e) => setEditText(e.target.value)}
-                        onBlur={handleBlur}
-                        onKeyDown={handleKeyDown}
-                        // onPointerDown={(e) => e.stopPropagation()}
-                    />
+                {note.type === 'pdf' && note.file_url ? (
+                    <div className="w-full h-full overflow-hidden bg-white">
+                        {/* ドラッグ移動とリンククリックが喧嘩しないように、no-dragクラスとか工夫がいるかもだが一旦これ！ */}
+                        <Document file={note.file_url} loading="Loading...">
+                            <Page 
+                                pageNumber={note.page_index || 1} 
+                                width={noteSize.width} // 枠の幅に合わせる！
+                                renderAnnotationLayer={true} // リンク有効！
+                                renderTextLayer={false} 
+                            />
+                        </Document>
+                        {/* 編集モードとかで上に透明なレイヤー置かないと、リンク押せないかも？ */}
+                    </div>
+                ) : (
+                    isEditing ? (
+                        <textarea
+                            ref={textareaRef}
+                            className={clsx('edit-textarea', {
+                                'edit-textarea-red': note.color === 'r',
+                                'edit-textarea-blue': note.color === 'b',
+                            })}
+                            value={editText}
+                            onChange={(e) => setEditText(e.target.value)}
+                            onBlur={handleBlur}
+                            onKeyDown={handleKeyDown}
+                            // onPointerDown={(e) => e.stopPropagation()}
+                        />
                 ) : (
                     <textarea
                         className={clsx('note-text-readonly', {
@@ -206,7 +222,7 @@ const Note = forwardRef<HTMLDivElement, NoteProps>(({ note, onDelete, onEdit, on
                         value={note.text}
                         readOnly={true}
                     />
-                )}
+                ))}
                 {note.icon && (
                     <div className="icon-container">
                         <img src={note.icon} alt="user icon" className="user-icon" />

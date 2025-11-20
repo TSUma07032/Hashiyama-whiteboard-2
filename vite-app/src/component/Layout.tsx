@@ -39,6 +39,73 @@ export default function Layout() {
         viewpointRef.current = viewpoint;
     }, [viewpoint]);
 
+    const handleAddPdfNote = async (url: string, pageIndex: number) => {
+        const noteToInsert = {
+            text: '', // テキストは空でOK
+            x: DEFAULT_NOTE_POSITION.x, // 適当な位置
+            y: DEFAULT_NOTE_POSITION.y,
+            width: 320,  // PDF用にちょっと大きくしとくか
+            height: 450, // 縦長に
+            color: 'white', // PDFは白背景が見やすい
+            type: 'pdf', // ◀◀◀ タイプはPDF！
+            file_url: url, // ◀◀◀ URL保存
+            page_index: pageIndex, // ◀◀◀ ページ番号保存
+            replies: [],
+            isRead: false,
+        };
+
+        // DBにインサート！
+        const { data } = await supabase.from('notes').insert(noteToInsert).select();
+        if (data) {
+            setNotes((prev) => [...prev, data[0] as NoteData]);
+        }
+    };
+
+    const handleAddAllPdfPages = async (url: string, totalPages: number) => {
+        const PDF_NOTE_WIDTH = 320; // PDF付箋の幅
+        const GAP = 20; // 付箋同士の隙間
+
+        // 1. 挿入するデータ（配列）を一気に作る！
+        const notesToInsert = [];
+
+        for (let i = 0; i < totalPages; i++) {
+            notesToInsert.push({
+                text: '', 
+                // X座標を「幅 + 隙間」分だけズラしていく！
+                // これで横一列にズラァァァっと並ぶぜぃ！
+                x: DEFAULT_NOTE_POSITION.x + i * (PDF_NOTE_WIDTH + GAP), 
+                y: DEFAULT_NOTE_POSITION.y,
+                width: PDF_NOTE_WIDTH,
+                height: 450,
+                color: 'white',
+                type: 'pdf', // index.d.ts で追加したヤツな！
+                file_url: url,
+                page_index: i + 1, // ページ番号は 1 からスタート
+                replies: [],
+                isRead: false,
+            });
+        }
+
+        try {
+            // 2. Supabase に配列をドン！と渡して一括インサート！
+            const { data, error } = await supabase
+                .from('notes')
+                .insert(notesToInsert) // ◀ 配列を渡せばBulk Insertになる！
+                .select();
+
+            if (error) throw error;
+
+            // 3. 成功したらローカルstateにも一気に追加！
+            if (data) {
+                setNotes((prev) => [...prev, ...data as NoteData[]]);
+                console.log(`${data.length} ページ分のPDFを一括召喚したぜぃ！`);
+            }
+        } catch (error) {
+            console.error('一括追加失敗:', error);
+            alert('一括追加に失敗したぞ、ざぁこ♡');
+        }
+    };
+
     // ↓↓↓ ドラッグ開始時のカーソル位置を記憶するための箱を追加！ ↓↓↓
     const dragStartCursorRef = useRef({ x: 0, y: 0 });
 
@@ -487,7 +554,18 @@ export default function Layout() {
                 {showPdfViewer && (
                     <div className="modal-overlay" onClick={() => setShowPdfViewer(false)}>
                         <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                            <PDFViewer />
+                            <PDFViewer 
+                                // ▼▼▼ 既存の単発追加 ▼▼▼
+                                onAddPdfNote={(url, page) => {
+                                    handleAddPdfNote(url, page);
+                                    // setShowPdfViewer(false); // 連続で貼りたいなら閉じない方がいいかも？
+                                }}
+                                // ▼▼▼ 【追加】一括追加関数も渡す！ ▼▼▼
+                                onAddAllPages={(url, totalPages) => {
+                                    handleAddAllPdfPages(url, totalPages);
+                                    setShowPdfViewer(false); // 流石に全ページ貼ったら閉じるか！
+                                }}
+                            />
                         </div>
                     </div>
                 )}

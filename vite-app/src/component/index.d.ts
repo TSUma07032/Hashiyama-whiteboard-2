@@ -40,4 +40,13 @@ export type NoteData = {
   height?: number; // 付箋の高さ
   isRead?: boolean; // 付箋が既読かどうか
   replies?: ReplyData[];
+  // 付箋の種類（'note': テキスト付箋, 'pdf': PDF付箋）
+  // 指定がない場合は 'note' として扱うから optional (?) にしとくのが安全だ！
+  type?: 'note' | 'pdf'; 
+
+  // PDFファイルのURL（Supabase Storageの公開URL）
+  file_url?: string | null;
+
+  // PDFのページ番号（1ページ目〜）
+  page_index?: number | null;
 };

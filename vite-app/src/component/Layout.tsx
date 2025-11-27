@@ -12,6 +12,8 @@ import type { NoteData, ReplyData } from './index.d'; // NoteData型をインポ
 import PDFViewer from './PDFViewer'; // PDFViewerコンポーネントをインポート
 import '../styles/layout.css';
 import { supabase } from './supabaseClient';
+import html2canvas from 'html2canvas'; // ◀ 画像化ライブラリ
+import jsPDF from 'jspdf';             // ◀ PDF生成ライブラリ
 
 /**
  * @filename Layout.tsx
@@ -33,6 +35,130 @@ export default function Layout() {
     const panStartRef = useRef({ x: 0, y: 0 });
 
     const [showPdfViewer, setShowPdfViewer] = useState(false);
+    const contentRef = useRef<HTMLDivElement>(null); // 印刷対象（MainContent）への参照
+    const handlePrint = async () => {
+        // ノートが1個もないときは何もしない
+        if (!contentRef.current || notes.length === 0) {
+            alert("付箋がひとつもないぞ、ざぁこ♡");
+            return;
+        }
+
+        const originalCursor = document.body.style.cursor;
+        document.body.style.cursor = 'wait';
+
+        try {
+            // 1. 全ノートの座標から、全体の「バウンディングボックス（境界）」を計算する！
+            //    これで「無限キャンバスのどこからどこまでを使ってるか」を特定する！
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            
+            notes.forEach(note => {
+                const nWidth = note.width || 200; // デフォルト幅
+                const nHeight = note.height || 100; // デフォルト高さ
+                const nRight = note.x + nWidth;
+                const nBottom = note.y + nHeight;
+                
+                if (note.x < minX) minX = note.x;
+                if (note.y < minY) minY = note.y;
+                if (nRight > maxX) maxX = nRight;
+                if (nBottom > maxY) maxY = nBottom;
+            });
+
+            // ちょっと余白（パディング）を足してあげる（窮屈にならないように）
+            const PADDING = 50;
+            minX -= PADDING;
+            minY -= PADDING;
+            maxX += PADDING;
+            maxY += PADDING;
+
+            const totalWidth = maxX - minX;
+            const totalHeight = maxY - minY;
+
+            console.log(`全体サイズ計算完了: ${totalWidth} x ${totalHeight} (origin: ${minX}, ${minY})`);
+
+            // 2. html2canvas で「影分身」を作って撮影！
+            const canvas = await html2canvas(contentRef.current, {
+                useCORS: true,
+                scale: 2, // 高画質！
+                
+                // ▼▼▼ ここが魔術！キャプチャサイズを「全コンテンツ」に合わせる！ ▼▼▼
+                width: totalWidth,
+                height: totalHeight,
+                windowWidth: totalWidth,
+                windowHeight: totalHeight,
+                x: 0, 
+                y: 0,
+                
+                // ▼▼▼ 影分身（クローン）を整形する！ ▼▼▼
+                onclone: (clonedDoc) => {
+                    // クローンされたDOMの中のラッパー（#print-target）を取得
+                    const clonedWrapper = clonedDoc.getElementById('print-target');
+                    if (!clonedWrapper) return;
+                    
+                    // A. ラッパーの枠を、計算した「全体サイズ」まで無理やり広げる！
+                    clonedWrapper.style.width = `${totalWidth}px`;
+                    clonedWrapper.style.height = `${totalHeight}px`;
+                    clonedWrapper.style.overflow = 'visible'; // はみ出し許可！
+                    clonedWrapper.style.position = 'relative';
+
+                    // B. 中身の「変形（ズーム・移動）」をリセットして、
+                    //    全コンテンツが (0, 0) から始まるように位置を補正する！
+                    //    （MainContentの中にある、transformがかかってるdivを探す）
+                    const transformContainer = clonedWrapper.querySelector('div[style*="transform"]');
+                    if (transformContainer instanceof HTMLElement) {
+                        // 「今のズーム」を無視してスケール1倍！
+                        // 「今の視点」を無視して、minX, minY 分だけズラして、左上の付箋を (0,0) に持ってくる！
+                        transformContainer.style.transform = `translate(${-minX}px, ${-minY}px) scale(1)`;
+                        transformContainer.style.transformOrigin = 'top left';
+                    }
+                }
+            });
+
+            // 3. あとは同じ！PDF生成
+            const imgData = canvas.toDataURL('image/png');
+            const imgWidth = canvas.width;
+            const imgHeight = canvas.height;
+            
+            const orientation = imgWidth > imgHeight ? 'l' : 'p';
+            // PDFのサイズ単位をピクセル(px)に合わせて画像サイズそのまま突っ込む！
+            const pdf = new jsPDF(orientation, 'px', [imgWidth / 2, imgHeight / 2]); // scale2倍で作ったからサイズ調整
+            
+            pdf.addImage(imgData, 'PNG', 0, 0, imgWidth / 2, imgHeight / 2);
+            pdf.save('hashiyamaboard.pdf');
+
+        } catch (error) {
+            console.error('PDF生成失敗:', error);
+            alert('PDF保存に失敗した');
+        } finally {
+            document.body.style.cursor = originalCursor;
+        }
+    };
+
+    // ▼▼▼ 2. 一括削除機能の実装 ▼▼▼
+    const handleDeleteAll = async () => {
+        // さすがに確認ダイアログは出そうぜ？w
+        if (!window.confirm("【警告】\nボード上の全てのデータを削除します。\nこの操作は取り消せません。\n本当にやりますか？")) {
+            return;
+        }
+
+        try {
+            // "id" が "0" じゃないやつ（つまり全部）を削除！
+            // (UUIDなら絶対に0にはならないからこれで全削除になる)
+            const { error } = await supabase
+                .from('notes')
+                .delete()
+                .neq('id', '00000000-0000-0000-0000-000000000000'); 
+
+            if (error) throw error;
+
+            // ローカルもクリア！
+            setNotes([]);
+            alert("全てを無に帰しました...( ˘ω˘)ｽﾔｧ");
+
+        } catch (error) {
+            console.error('全削除失敗:', error);
+            alert('削除に失敗した');
+        }
+    };
 
     const viewpointRef = useRef(viewpoint);
     useEffect(() => {
@@ -526,15 +652,25 @@ export default function Layout() {
         <DndContext onDragEnd={handleDragEnd} onDragStart={handleDragStart} sensors={sensors}>
             
             <div className="app-layout relative" >{/* onWheel={handleWheel} */}
-                <Header className="header-area" data-no-pan="true" />
+                <Header 
+                    className="header-area" 
+                    data-no-pan="true" 
+                    onPrint={handlePrint}         // 印刷ボタン用
+                    onDeleteAll={handleDeleteAll} // 全削除ボタン用
+                />
                 <LeftSidebar 
                     className="left-sidebar-area" 
                     onIconUpload={setUploadedIcon}
                     onTogglePdfViewer={() => setShowPdfViewer(prev => !prev)}
                     data-no-pan="true"
                 />
+                <div 
+                    ref={contentRef}
+                    className="main-content-area w-full h-full flex flex-col relative overflow-hidden" 
+                    id="print-target"
+                >
                 <MainContent
-                    className="main-content-area"
+                    className="w-full h-full flex-1"
                     ref={mainContentRef}
                     scale={scale}
                     viewpoint={viewpoint} // viewpoint を渡す
@@ -542,6 +678,7 @@ export default function Layout() {
                 >
                     <NoteList notes={notes} onDelete={handleDelete} onEdit={handleEditNote} onResize={handleResizeNote} scale={scale} onAddReply={handleAddReply} onToggleReadStatus={handleToggleReadStatus} />
                 </MainContent>
+                </div>
                 <RightSidebar className="right-sidebar-area" notes={notes} onAddReply={handleAddReply} onToggleReadStatus={handleToggleReadStatus} />
                 <NoteInput onAddNote={handleAddNote} />
                 <div className="zoom-controls" data-no-pan="true">

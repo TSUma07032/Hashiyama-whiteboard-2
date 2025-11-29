@@ -634,6 +634,38 @@ export default function Layout() {
         setIsPanning(false);
     }, []);
 
+    // 汎用アップデート関数 (ロックとかZ-Indexとか)
+    const handleUpdateNote = async (id: string, updates: Partial<NoteData>) => {
+        try {
+            const { error } = await supabase.from('notes').update(updates).eq('id', id);
+            if (error) throw error;
+            // ローカルstateはRealtimeが更新してくれるから何もしない！
+            // (即座に反映させたいなら setNotes で map してもいい)
+        } catch (e) { console.error(e); }
+    };
+
+    // 複製機能
+    const handleDuplicateNote = async (id: string) => {
+        const original = notes.find(n => n.id === id);
+        if (!original) return;
+        
+        // 元のノートをコピーして、少しズラして新規作成！
+        // id と created_at はDBが自動生成or無視するので除外
+        const { id: _id, ...rest } = original; 
+        const newNote = {
+            ...rest,
+            x: original.x + 20, // ちょっとズラす
+            y: original.y + 20,
+            text: original.text + ' (コピー)', // わかりやすく
+            is_locked: false, // コピー品はロック解除
+        };
+
+        try {
+            const { error } = await supabase.from('notes').insert(newNote);
+            if (error) throw error;
+        } catch (e) { console.error(e); }
+    };
+
     useEffect(() => {
         if (isPanning) {
             window.addEventListener('mousemove', handlePanMove);
@@ -670,14 +702,30 @@ export default function Layout() {
                     id="print-target"
                 >
                 <MainContent
-                    className="w-full h-full flex-1"
-                    ref={mainContentRef}
-                    scale={scale}
-                    viewpoint={viewpoint} // viewpoint を渡す
-                    onPanStart={handlePanStart} // パン開始関数を渡す
-                >
-                    <NoteList notes={notes} onDelete={handleDelete} onEdit={handleEditNote} onResize={handleResizeNote} scale={scale} onAddReply={handleAddReply} onToggleReadStatus={handleToggleReadStatus} />
-                </MainContent>
+                    notes={notes}
+                    onNotesChange={async (id, x, y) => {
+                         console.log('座標保存するぜぃ！', id, x, y);
+                         try {
+                             // Supabase の 'x' と 'y' を更新！
+                             const { error } = await supabase
+                                 .from('notes')
+                                 .update({ x, y }) // 座標だけ更新
+                                 .eq('id', id);    // 対象のID
+
+                             if (error) throw error;
+                             // ※ローカルstateの更新は、Realtime通知か、ReactFlowの内部stateがやってくれるから
+                             // ここで setNotes しなくてもカクつかないはずだ！
+                         } catch (e) {
+                             console.error('座標保存失敗:', e);
+                         }
+                     }}
+                    onAddNote={(text, color, x, y) => handleAddNote(text, color, x, y)}
+                    onEditNote={handleEditNote}
+                    onAddReply={handleAddReply}
+                    onDeleteNote={handleDelete} // 既存の削除関数
+                     onDuplicateNote={handleDuplicateNote} // 新規作成
+                     onUpdateNote={handleUpdateNote} // 新規作成
+                />
                 </div>
                 <RightSidebar className="right-sidebar-area" notes={notes} onAddReply={handleAddReply} onToggleReadStatus={handleToggleReadStatus} />
                 <NoteInput onAddNote={handleAddNote} />

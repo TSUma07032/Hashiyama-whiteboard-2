@@ -288,3 +288,9 @@
     width: 100% !important;
     height: 100% !important;
 }
+
+.pdf-svg-layer svg {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain !important; /* 比率を維持して収める */
+}

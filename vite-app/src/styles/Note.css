@@ -258,3 +258,33 @@
   z-index: 10; /* 他の要素より手前に表示 */
   font-size: 18px;
 }
+
+/* react-pdf が生成するラッパー */
+.pdf-page-wrapper {
+    width: 100% !important; /* 強制的に親要素の幅に合わせる */
+    height: 100% !important; /* 強制的に親要素の高さに合わせる */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+/* その中にある Canvas (絵の実体) */
+.pdf-page-wrapper canvas {
+    /* これがキモ！
+       「絵」自体のピクセル数はデカいまま、
+       見た目のサイズだけを「枠 (100%)」に縮小して表示させる！
+       object-fit: contain と同じ効果をCanvasでやるイメージ。
+    */
+    width: 100% !important; 
+    height: auto !important;
+    object-fit: contain;
+}
+
+/* もしテキスト選択 (renderTextLayer=true) を使うならこれも必要 */
+.pdf-page-wrapper .react-pdf__Page__textContent {
+    transform-origin: top left;
+    transform: scale(calc(1 / var(--scale-factor))); /* ここはJSで計算が必要になるから一旦無視でOK */
+    width: 100% !important;
+    height: 100% !important;
+}

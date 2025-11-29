@@ -159,9 +159,11 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ onAddPdfNote, onAddAllPages }) =>
               <div key={`page_${index + 1}`} className="shadow-md">
                 <Page 
                     pageNumber={index + 1} 
-                    width={300} // ◀ 幅を指定しないとデカすぎるぞ！調整しろ！
+                    // width={300} // ← width指定は一旦消すか、scaleと相談だ！
+                    scale={2.0}    // ◀◀◀ これを追加！ (2.0〜3.0くらいがオススメ)
                     renderAnnotationLayer={true} 
                     renderTextLayer={false} 
+                    className="shadow-lg" // ついでに影つけてリッチにしようぜw
                 />
                 <button
                     onClick={() => onAddPdfNote(pdfUrl, index + 1)}

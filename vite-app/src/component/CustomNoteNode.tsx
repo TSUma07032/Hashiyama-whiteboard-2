@@ -1,5 +1,5 @@
 import React, { memo, useState, useEffect, useCallback, useRef } from 'react';
-import { type NodeProps, NodeResizer } from 'reactflow';
+import { type NodeProps, NodeResizeControl } from 'reactflow';
 import { Document, Page, pdfjs } from 'react-pdf';
 import type { ReplyData } from './index.d';
 import LinkifyText from './Linkify';
@@ -9,16 +9,30 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url,
 ).toString();
 
+// リサイズハンドル (見た目)
+const ResizeIcon = () => (
+    <div style={{
+        width: '12px', 
+        height: '12px',
+        background: '#ffffff',
+        border: '2px solid #2563eb', 
+        borderRadius: '50%',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
+    }} />
+);
+
 const CustomNoteNode = ({ data, selected }: NodeProps) => {
+    // --- 状態管理 ---
     const [isEditing, setIsEditing] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const [localText, setLocalText] = useState(data.text);
     const [replyText, setReplyText] = useState('');
-    const [isReplying, setIsReplying] = useState(false);
+    const [showReplies, setShowReplies] = useState(false);
 
     useEffect(() => { setLocalText(data.text); }, [data.text]);
 
-    const handleDoubleClick = useCallback(() => {
+    const handleDoubleClick = useCallback((e: React.MouseEvent) => {
+        e.stopPropagation();
         if (data.type !== 'pdf') setIsEditing(true);
     }, [data.type]);
 
@@ -30,8 +44,9 @@ const CustomNoteNode = ({ data, selected }: NodeProps) => {
     useEffect(() => {
         if (isEditing && textareaRef.current) {
             textareaRef.current.focus();
-            // カーソルを末尾へ
-            textareaRef.current.setSelectionRange(textareaRef.current.value.length, textareaRef.current.value.length);
+            setTimeout(() => {
+                textareaRef.current?.setSelectionRange(textareaRef.current.value.length, textareaRef.current.value.length);
+            }, 0);
         }
     }, [isEditing]);
 
@@ -42,129 +57,113 @@ const CustomNoteNode = ({ data, selected }: NodeProps) => {
         if (replyText.trim()) {
             data.onAddReply(replyText);
             setReplyText('');
-            setIsReplying(false);
         }
     };
 
     const handleDelete = (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (window.confirm("消しちゃう？")) {
-            data.onDelete(data.id);
-        }
+        if (window.confirm("消しちゃう？")) data.onDelete(data.id);
     };
 
-    const bgColor = data.type === 'pdf' ? '#ffffff' : (data.color === 'r' ? '#fecaca' : '#bfdbfe');
-    const borderStyle = selected ? '2px solid #2563eb' : '1px solid rgba(0,0,0,0.1)';
+    const onResizeEnd = useCallback((event: any, params: any) => {
+        const { width, height } = params;
+        data.onUpdateNote(data.id, { 
+            width: Math.round(width),   // 小数点が出ることあるから丸める！
+            height: Math.round(height) 
+        });
+    }, [data]);
+
+    const bgColor = data.type === 'pdf' ? '#ffffff' : (data.color === 'r' ? '#ff9999' : '#99ccff');
+    const borderStyle = selected ? '3px solid #2563eb' : '1px solid rgba(0,0,0,0.2)';
+
+    // リサイズハンドルの共通スタイル
+    const controlStyle = {
+        background: 'transparent',
+        border: 'none',
+        width: '20px', height: '20px',
+        display: 'flex', justifyContent: 'center', alignItems: 'center'
+    };
 
     return (
         <>
-            <NodeResizer color="#2563eb" isVisible={selected} minWidth={150} minHeight={100} />
-
+            {/* ▼▼▼ 本体を先に書く！ ▼▼▼ */}
             <div 
                 onDoubleClick={handleDoubleClick}
+                className={`custom-note-wrapper ${isEditing ? 'nodrag cursor-text' : 'cursor-grab'}`}
                 style={{ 
                     backgroundColor: bgColor, width: '100%', height: '100%',
-                    border: borderStyle, borderRadius: '8px', 
-                    position: 'relative', 
-                    overflow: 'visible', // ◀◀◀ はみ出し許可！超重要！
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                    border: borderStyle, borderRadius: '4px',
+                    position: 'relative', overflow: 'visible',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.2)',
+                    display: 'flex', flexDirection: 'column',
                 }}
             >
-                {/* アイコン (左上はみ出し) */}
-                {data.icon && <img src={data.icon} alt="icon" style={{ position: 'absolute', top: '-16px', left: '-16px', width: '40px', height: '40px', borderRadius: '50%', border: '2px solid white', zIndex: 20, objectFit: 'cover', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }} />}
-
-                {/* ▼▼▼ ゴミ箱ボタン (修正版！右上に浮遊させる！) ▼▼▼ */}
+                {/* 削除ボタン */}
                 <button 
                     onClick={handleDelete}
-                    className="nodrag" // ドラッグ無効化
+                    className="nodrag"
                     style={{
-                        position: 'absolute',
-                        top: '-12px',   // 上にはみ出す！
-                        right: '-12px', // 右にはみ出す！
-                        width: '24px',
-                        height: '24px',
-                        borderRadius: '50%', // まん丸に
-                        backgroundColor: 'white',
-                        border: '1px solid #e5e7eb', // 薄いグレーの枠
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        zIndex: 50, // 最前面
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)', // 影
-                        color: '#ef4444', // 赤文字
-                        fontSize: '16px',
-                        lineHeight: '1',
-                        padding: 0,
+                        position: 'absolute', top: '-10px', right: '-10px',
+                        width: '24px', height: '24px', borderRadius: '50%',
+                        backgroundColor: 'white', border: '2px solid #ef4444',
+                        color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        cursor: 'pointer', zIndex: 50, fontSize: '16px', fontWeight: 'bold', padding: 0,
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
                     }}
                     title="削除"
                 >
                     ×
                 </button>
 
-                {/* コンテンツ */}
-                <div style={{ width: '100%', height: '100%', overflow: 'hidden', borderRadius: '8px' }}>
+                {/* アイコン */}
+                {data.icon && <img src={data.icon} alt="icon" style={{ position: 'absolute', top: '-16px', left: '-16px', width: '36px', height: '36px', borderRadius: '50%', border: '2px solid white', zIndex: 20, objectFit: 'cover', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }} />}
+
+                {/* コンテンツエリア */}
+                <div style={{ flex: 1, width: '100%', overflow: 'hidden', padding: '12px' }}>
                     {data.type === 'pdf' && data.file_url ? (
-                        <div className="w-full h-full relative overflow-hidden flex justify-center items-center">
-                            <Document file={data.file_url} loading="...">
-                                <Page 
-                                    pageNumber={data.page_index || 1} 
-                                            
-                                    // 1. 画質のためにデカく描画する！ (枠200pxなら 600pxで描く！)
-                                    width={600} 
-                                            
-                                    renderAnnotationLayer={false} 
-                                    renderTextLayer={false} 
-                                            
-                                    // 2. クラス名を当てる
-                                    className="high-res-canvas"
-                                />
-                            </Document>
+                        <div style={{ width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}> 
+                            <Document file={data.file_url} loading="..."><Page pageNumber={data.page_index || 1} renderMode={'svg' as any} width={200} className="pdf-svg-layer" renderAnnotationLayer={false} renderTextLayer={false} /></Document>
                         </div>
                     ) : (
-                        <div style={{ width: '100%', height: '100%', padding: '16px' }}>
-                            {isEditing ? (
-                                <textarea 
-                                    ref={textareaRef} className="nodrag"
-                                    style={{ width: '100%', height: '100%', backgroundColor: 'transparent', border: 'none', outline: 'none', resize: 'none', fontSize: '14px', color: '#333', cursor: 'text' }}
-                                    value={localText} onChange={handleChange} onBlur={handleBlur}
-                                />
-                            ) : (
-                                <div style={{ width: '100%', height: '100%', fontSize: '14px', color: '#333', cursor: 'grab', whiteSpace: 'pre-wrap', overflowY: 'auto' }}>
-                                    {localText ? <LinkifyText text={localText} /> : <span style={{color: '#9ca3af'}}>ダブルクリックで編集...</span>}
-                                </div>
-                            )}
-                        </div>
+                        isEditing ? (
+                            <textarea 
+                                ref={textareaRef} 
+                                style={{ width: '100%', height: '100%', backgroundColor: 'transparent', border: 'none', outline: 'none', resize: 'none', fontSize: '14px', color: '#000', fontWeight: '500', lineHeight: '1.5' }}
+                                value={localText} onChange={handleChange} onBlur={handleBlur}
+                            />
+                        ) : (
+                            <div style={{ width: '100%', height: '100%', fontSize: '14px', color: '#000', fontWeight: '500', whiteSpace: 'pre-wrap', overflowY: 'hidden', lineHeight: '1.5' }}>
+                                {localText ? <LinkifyText text={localText} /> : <span style={{color: 'rgba(0,0,0,0.4)', fontStyle: 'italic'}}>ダブルクリックで入力</span>}
+                            </div>
+                        )
                     )}
                 </div>
 
                 {/* 返信エリア */}
-                <div className="nodrag" style={{ position: 'absolute', top: '100%', left: '0', width: '100%', paddingTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px', zIndex: 30 }}>
-                    {/* 返信リストの表示 */}
-                    {data.replies && data.replies.length > 0 && (
-                        <div style={{ backgroundColor: 'rgba(255,255,255,0.9)', padding: '8px', borderRadius: '6px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', border: '1px solid #e5e7eb', fontSize: '12px', maxHeight: '120px', overflowY: 'auto' }}>
-                            {data.replies.map((reply: ReplyData) => (
-                                <div key={reply.id} style={{ borderBottom: '1px solid #f3f4f6', padding: '4px 0', wordBreak: 'break-all' }}>
-                                    {reply.text}
-                                </div>
-                            ))}
+                <div className="nodrag" style={{ position: 'absolute', bottom: '-34px', left: '50%', transform: 'translateX(-50%)', zIndex: 30, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <button onClick={(e) => { e.stopPropagation(); setShowReplies(!showReplies); }} style={{ backgroundColor: 'white', padding: '4px 12px', borderRadius: '20px', boxShadow: '0 2px 5px rgba(0,0,0,0.15)', border: '1px solid #ddd', fontSize: '12px', color: '#555', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', whiteSpace: 'nowrap' }}>💬 {data.replies?.length > 0 ? data.replies.length : '+'}</button>
+                    {showReplies && (
+                        <div style={{ position: 'absolute', top: '36px', left: '50%', transform: 'translateX(-50%)', width: '240px', backgroundColor: 'white', borderRadius: '8px', boxShadow: '0 8px 20px rgba(0,0,0,0.2)', border: '1px solid #ddd', padding: '10px', zIndex: 100 }}>
+                            {data.replies?.length > 0 && <div style={{ maxHeight: '120px', overflowY: 'auto', marginBottom: '8px', textAlign: 'left' }}>{data.replies.map((reply: ReplyData) => <div key={reply.id} style={{ fontSize: '12px', borderBottom: '1px solid #eee', padding: '4px 0', color: '#333' }}>{reply.text}</div>)}</div>}
+                            <div style={{ display: 'flex', gap: '4px' }}><input type="text" className="nodrag" style={{ flex: 1, fontSize: '12px', border: '1px solid #ccc', borderRadius: '4px', padding: '4px', outline: 'none' }} placeholder="返信..." value={replyText} onChange={e => setReplyText(e.target.value)} onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddReply(e))} autoFocus /><button onClick={handleAddReply} style={{ fontSize: '12px', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer' }}>➤</button></div>
                         </div>
-                    )}
-                    
-                    {/* 返信入力フォーム */}
-                    {isReplying ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: 'white', padding: '4px', borderRadius: '20px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', border: '1px solid #e5e7eb' }}>
-                            <input type="text" className="nodrag" style={{ flex: 1, fontSize: '12px', padding: '4px 8px', border: 'none', outline: 'none', background: 'transparent' }} placeholder="返信..." value={replyText} onChange={e => setReplyText(e.target.value)} onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddReply(e))} autoFocus />
-                            <button onClick={handleAddReply} style={{ backgroundColor: '#3b82f6', color: 'white', borderRadius: '50%', width: '24px', height: '24px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span style={{ fontSize: '10px', marginLeft: '-1px' }}>➤</span></button>
-                            <button onClick={(e) => { e.stopPropagation(); setIsReplying(false); }} style={{ color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', width: '24px', height: '24px' }}>×</button>
-                        </div>
-                    ) : (
-                        <button onClick={(e) => { e.stopPropagation(); setIsReplying(true); }} style={{ backgroundColor: 'rgba(255,255,255,0.8)', color: '#6b7280', fontSize: '12px', padding: '4px 12px', borderRadius: '20px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', border: '1px solid #e5e7eb', alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', backdropFilter: 'blur(4px)' }}>
-                            <span>💬</span> 返信
-                        </button>
                     )}
                 </div>
             </div>
+
+            {/* ▼▼▼ ハンドル調整！ ▼▼▼ */}
+            
+            {/* 右下 (↘)：-5 -> -2 に寄せる！ */}
+            <NodeResizeControl position="bottom-right" style={{ ...controlStyle, cursor: 'nwse-resize', right: -2, bottom: -2 }} onResizeEnd={onResizeEnd}>
+                <ResizeIcon />
+            </NodeResizeControl>
+
+            {/* 左下 (↙)：-5 -> -2 に寄せる！ */}
+            <NodeResizeControl position="bottom-left" style={{ ...controlStyle, cursor: 'nesw-resize', left: -2, bottom: -2 }} onResizeEnd={onResizeEnd}>
+                <ResizeIcon />
+            </NodeResizeControl>
+
+            {/* 左上 (↖) は削除したぜぃ！ */}
         </>
     );
 };

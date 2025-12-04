@@ -192,9 +192,19 @@ const Note = forwardRef<HTMLDivElement, NoteProps>(({ note, onDelete, onEdit, on
                         <Document file={note.file_url} loading="Loading...">
                             <Page 
                                 pageNumber={note.page_index || 1} 
-                                width={noteSize.width} // 枠の幅に合わせる！
-                                renderAnnotationLayer={true} // リンク有効！
-                                renderTextLayer={false} 
+
+                                //レンダリング解像度（画質）を決める
+                                // ノートの幅 × デバイスのピクセル比（Retinaなら2） × 余裕を見て1.5倍くらい
+                                // これで「拡大してもボヤけない高密度の絵」が作られる！
+                                width={noteSize.width * (window.devicePixelRatio || 1) * 1.5} 
+
+                                // 表示サイズ（レイアウト）を強制する 
+                                // Canvasがどれだけデカくても、親のdiv（noteSize）にピッタリ収まるようにする
+                                // これがないと、さっきみたいにレイアウトが爆発する！
+                                className="pdf-page-wrapper"
+
+                                renderAnnotationLayer={true} 
+                                renderTextLayer={false} // テキスト選択いらないならfalse推奨（ズレ防止）
                             />
                         </Document>
                         {/* 編集モードとかで上に透明なレイヤー置かないと、リンク押せないかも？ */}

@@ -74,25 +74,26 @@ export default function ImageUploader({ onUpload }: ImageUploaderProps) {
     };
 
     return (
-    <div className="flex flex-col items-center p-4 border-2 border-dashed border-gray-400 rounded-md bg-gray-50 mb-4">
-        <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            className="hidden"
-            accept="image/png, image/jpeg"
-            disabled={isUploading} // 連打防止
-        />
-        <p className="text-sm text-gray-600 mb-2">
-            {isUploading ? `アップロード中...: ${fileName}` : (fileName ? `選択中のファイル: ${fileName}` : 'アイコンが選択されていません')}
-        </p>
-        <button
-            onClick={handleButtonClick}
-            className="py-2 px-4 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors disabled:opacity-50"
-            disabled={isUploading} // 連打防止
-        >
-            {isUploading ? '待て…！' : (fileName ? 'アイコンを変更する' : 'アイコンをアップロード')}
-        </button>
-    </div>
-);
+        <div className="flex flex-col items-center w-full mb-4">
+            {/* ▼▼▼ こいつだ！ hidden クラスがついているか絶対確認！ ▼▼▼ */}
+            <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                className="hidden" // 隠す！
+                accept="image/png, image/jpeg"
+                style={{ display: 'none' }}
+            />
+            
+            <button
+                onClick={handleButtonClick}
+                className="w-full max-w-[200px] py-2 px-4 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none"
+                disabled={isUploading}
+            >
+                {isUploading ? 'アップロード中...' : (fileName ? 'アイコン変更' : 'アイコンをアップロード')}
+            </button>
+            
+            {fileName && <p className="text-xs text-gray-500 mt-1 truncate max-w-[200px]">{fileName}</p>}
+        </div>
+    );
 }

@@ -56,7 +56,7 @@ export default function RightSidebar({ className, notes, onAddReply, onToggleRea
     });
 
     return (
-        <aside className={`w-64 bg-gray-100 p-2 shadow-lg rounded-l-lg flex flex-col ${className || ''}`}>
+        <aside className={`w-full bg-gray-100 p-2 shadow-lg rounded-l-lg flex flex-col ${className || ''}`}>
             
             <div className="flex border-b-2">
                 <button

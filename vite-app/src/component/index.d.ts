@@ -49,4 +49,7 @@ export type NoteData = {
 
   // PDFのページ番号（1ページ目〜）
   page_index?: number | null;
+
+  is_locked?: boolean; // ロック状態
+  z_index?: number;    // 重なり順
 };

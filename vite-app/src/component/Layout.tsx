@@ -15,6 +15,17 @@ import { supabase } from './supabaseClient';
 import html2canvas from 'html2canvas'; // ◀ 画像化ライブラリ
 import jsPDF from 'jspdf';             // ◀ PDF生成ライブラリ
 
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+
+const ResizeHandle = ({ className = "" }: { className?: string }) => (
+    <PanelResizeHandle 
+        className={`w-4 bg-transparent hover:bg-blue-100 transition-colors flex items-center justify-center outline-none cursor-col-resize z-50 ${className}`}
+    >
+        {/* デザイン上の「細い線」 */}
+        <div className="w-0.5 h-full bg-gray-300 hover:bg-blue-400 transition-colors" />
+    </PanelResizeHandle>
+);
+
 /**
  * @filename Layout.tsx
  * @fileoverview Layoutコンポーネントは、アプリケーション全体のレイアウトを定義します。
@@ -30,9 +41,14 @@ export default function Layout() {
     const [uploadedIcon, setUploadedIcon] = useState<string | null>(null);
     const [scale, setScale] = useState<number>(1);
 
+    const [leftWidth, setLeftWidth] = useState(260); // デフォルト幅
+    const [rightWidth, setRightWidth] = useState(260);
+    const [isResizing, setIsResizing] = useState(false); //  ドラッグ中にiframeに吸われない対策
+
     const [viewpoint, setViewpoint] = useState({ x: 0, y: 0 });
     const [isPanning, setIsPanning] = useState(false);
     const panStartRef = useRef({ x: 0, y: 0 });
+    const [resizingSide, setResizingSide] = useState<'left' | 'right' | null>(null);
 
     const [showPdfViewer, setShowPdfViewer] = useState(false);
     const contentRef = useRef<HTMLDivElement>(null); // 印刷対象（MainContent）への参照
@@ -131,6 +147,50 @@ export default function Layout() {
         } finally {
             document.body.style.cursor = originalCursor;
         }
+    };
+
+    // ▼▼▼ アルゴリズムの核心：イベントリスナー ▼▼▼
+    useEffect(() => {
+        if (!resizingSide) return; // ドラッグしてなきゃ何もしない
+
+        const handleMouseMove = (e: MouseEvent) => {
+            // requestAnimationFrame で描画負荷を軽減！（プロの技）
+            requestAnimationFrame(() => {
+                if (resizingSide === 'left') {
+                    // 左: マウスのX座標 = 幅
+                    const newWidth = Math.max(150, Math.min(e.clientX, 500));
+                    setLeftWidth(newWidth);
+                } else {
+                    // 右: 画面幅 - マウスX座標 = 幅
+                    const newWidth = Math.max(150, Math.min(document.body.clientWidth - e.clientX, 500));
+                    setRightWidth(newWidth);
+                }
+            });
+        };
+
+        const handleMouseUp = () => {
+            setResizingSide(null); // ドラッグ終了
+            document.body.style.cursor = 'default';
+            // iframeの操作ブロックを解除
+            document.body.style.userSelect = 'auto'; 
+        };
+
+        // window全体で監視するから、マウスが外れても大丈夫！
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', handleMouseUp);
+
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, [resizingSide]);
+
+    const startResizing = (side: 'left' | 'right') => (e: React.MouseEvent) => {
+        e.preventDefault(); // テキスト選択などを防止
+        setResizingSide(side);
+        document.body.style.cursor = 'col-resize';
+        // ドラッグ中は文字選択などを禁止して、操作性を上げる
+        document.body.style.userSelect = 'none';
     };
 
     // ▼▼▼ 2. 一括削除機能の実装 ▼▼▼
@@ -683,77 +743,101 @@ export default function Layout() {
     return (
         <DndContext onDragEnd={handleDragEnd} onDragStart={handleDragStart} sensors={sensors}>
             
-            <div className="app-layout relative" >{/* onWheel={handleWheel} */}
+            {/* .app-layout クラスを使う！（layout.css で Flexbox になってるはず！） */}
+            <div className="app-layout">
+                
+                {/* ヘッダー */}
                 <Header 
-                    className="header-area" 
+                    className="header-area" // layout.css を適用
                     data-no-pan="true" 
-                    onPrint={handlePrint}         // 印刷ボタン用
-                    onDeleteAll={handleDeleteAll} // 全削除ボタン用
+                    onPrint={handlePrint}
+                    onDeleteAll={handleDeleteAll}
                 />
-                <LeftSidebar 
-                    className="left-sidebar-area" 
-                    onIconUpload={setUploadedIcon}
-                    onTogglePdfViewer={() => setShowPdfViewer(prev => !prev)}
-                    data-no-pan="true"
-                />
-                <div 
-                    ref={contentRef}
-                    className="main-content-area w-full h-full flex flex-col relative overflow-hidden" 
-                    id="print-target"
-                >
-                <MainContent
-                    notes={notes}
-                    onNotesChange={async (id, x, y) => {
-                         console.log('座標保存するぜぃ！', id, x, y);
-                         try {
-                             // Supabase の 'x' と 'y' を更新！
-                             const { error } = await supabase
-                                 .from('notes')
-                                 .update({ x, y }) // 座標だけ更新
-                                 .eq('id', id);    // 対象のID
 
-                             if (error) throw error;
-                             // ※ローカルstateの更新は、Realtime通知か、ReactFlowの内部stateがやってくれるから
-                             // ここで setNotes しなくてもカクつかないはずだ！
-                         } catch (e) {
-                             console.error('座標保存失敗:', e);
-                         }
-                     }}
-                    onAddNote={(text, color, x, y) => handleAddNote(text, color, x, y)}
-                    onEditNote={handleEditNote}
-                    onAddReply={handleAddReply}
-                    onDeleteNote={handleDelete} // 既存の削除関数
-                     onDuplicateNote={handleDuplicateNote} // 新規作成
-                     onUpdateNote={handleUpdateNote} // 新規作成
-                />
+                {/* メインエリア (Flexコンテナ) */}
+                <div className="main-wrapper">
+                    
+                    {/* ▼▼▼ PanelGroup に w-full h-full をつける！これがミソ！ ▼▼▼ */}
+                    <PanelGroup direction="horizontal" className="w-full h-full">
+                        
+                        {/* 1. 左サイドバー */}
+                        <Panel 
+                            defaultSize={20} 
+                            minSize={3} 
+                            maxSize={40} 
+                            // ↓ ここにはCSSクラスをつけず、内側のdivにつける！
+                        >
+                            {/* ここに .left-sidebar-area をつける！ */}
+                            <div className="left-sidebar-area h-full w-full">
+                                <LeftSidebar 
+                                    className="w-full h-full"
+                                    onIconUpload={setUploadedIcon}
+                                    onTogglePdfViewer={() => setShowPdfViewer(true)}
+                                    dataNoPan={true}
+                                />
+                            </div>
+                        </Panel>
+
+                        {/* ハンドル */}
+                        <ResizeHandle />
+
+                        {/* 2. メインコンテンツ */}
+                        <Panel minSize={30}>
+                            {/* ここに .main-content-area をつける！ */}
+                            <div 
+                                ref={contentRef}
+                                className="main-content-area w-full h-full relative overflow-hidden" 
+                                id="print-target"
+                            >
+                                <MainContent
+                                    notes={notes}
+                                    onNotesChange={(id, x, y) => handleUpdateNote(id, { x, y })}
+                                    onAddNote={handleAddNote}
+                                    onEditNote={handleEditNote}
+                                    onAddReply={handleAddReply}
+                                    onDeleteNote={handleDelete}
+                                    onDuplicateNote={handleDuplicateNote}
+                                    onUpdateNote={handleUpdateNote}
+                                    onToggleReadStatus={handleToggleReadStatus}
+                                />
+                            </div>
+                        </Panel>
+
+                        {/* ハンドル */}
+                        <ResizeHandle />
+
+                        {/* 3. 右サイドバー */}
+                        <Panel 
+                            defaultSize={20} 
+                            minSize={3} 
+                            maxSize={40} 
+                        >
+                            {/* ここに .right-sidebar-area をつける！ */}
+                            <div className="right-sidebar-area h-full w-full">
+                                <RightSidebar 
+                                    className="w-full h-full"
+                                    notes={notes}
+                                    onAddReply={handleAddReply}
+                                    onToggleReadStatus={handleToggleReadStatus}
+                                />
+                            </div>
+                        </Panel>
+
+                    </PanelGroup>
                 </div>
-                <RightSidebar className="right-sidebar-area" notes={notes} onAddReply={handleAddReply} onToggleReadStatus={handleToggleReadStatus} />
-                <NoteInput onAddNote={handleAddNote} />
-                <div className="zoom-controls" data-no-pan="true">
-                    <button onClick={handleZoomOut} className="zoom-button">-</button>
-                    <span className="zoom-display" onClick={handleZoomReset}>
-                        {Math.round(scale * 100)}%
-                    </span>
-                    <button onClick={handleZoomIn} className="zoom-button">+</button>
-                </div>
+
+                {/* PDFモーダル */}
                 {showPdfViewer && (
                     <div className="modal-overlay" onClick={() => setShowPdfViewer(false)}>
                         <div className="modal-content" onClick={(e) => e.stopPropagation()}>
                             <PDFViewer 
-                                // ▼▼▼ 既存の単発追加 ▼▼▼
-                                onAddPdfNote={(url, page) => {
-                                    handleAddPdfNote(url, page);
-                                    // setShowPdfViewer(false); // 連続で貼りたいなら閉じない方がいいかも？
-                                }}
-                                // ▼▼▼ 【追加】一括追加関数も渡す！ ▼▼▼
-                                onAddAllPages={(url, totalPages) => {
-                                    handleAddAllPdfPages(url, totalPages);
-                                    setShowPdfViewer(false); // 流石に全ページ貼ったら閉じるか！
-                                }}
+                                onAddPdfNote={(url, page) => { handleAddPdfNote(url, page); setShowPdfViewer(false); }}
+                                onAddAllPages={(url, pages) => { handleAddAllPdfPages(url, pages); setShowPdfViewer(false); }}
                             />
                         </div>
                     </div>
                 )}
+
             </div>
         </DndContext>
     );

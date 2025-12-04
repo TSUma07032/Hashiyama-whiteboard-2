@@ -1,5 +1,4 @@
 import React from 'react';
-// useDraggable とか dnd-kit 系は削除！
 import ImageUploader from './ImageUploader';
 
 type LeftSidebarProps = {
@@ -11,42 +10,47 @@ type LeftSidebarProps = {
 
 export default function LeftSidebar({ className, onIconUpload, onTogglePdfViewer, dataNoPan }: LeftSidebarProps) {
 
-    // ▼▼▼ これが標準のドラッグ開始イベントだ！ ▼▼▼
     const onDragStart = (event: React.DragEvent, nodeType: string, color: string) => {
-        // "application/reactflow" というキーでデータを仕込む（React Flow流儀）
         event.dataTransfer.setData('application/reactflow', JSON.stringify({ type: nodeType, color }));
         event.dataTransfer.effectAllowed = 'move';
     };
 
     return (
-        <aside className={`w-64 bg-gray-100 p-4 shadow-lg rounded-r-lg flex flex-col items-center ${className || ''}`} data-no-pan={dataNoPan ? 'true' : undefined}>
+        // ▼▼▼ w-full と items-center で中央揃え＆幅追従！ ▼▼▼
+        <aside 
+            className={`w-full bg-gray-100 p-4 shadow-lg rounded-r-lg flex flex-col items-center ${className || ''}`} 
+            data-no-pan={dataNoPan ? 'true' : undefined}
+        >
             <div className="w-full h-12 bg-gray-300 rounded-md mb-4 flex items-center justify-center text-gray-600 font-medium">ツールタブ</div>
             
-            <ImageUploader onUpload={onIconUpload} />
+            {/* ▼▼▼ ここ！ImageUploaderの中身も確認が必要だが、まずはコンテナを整理 ▼▼▼ */}
+            <div className="w-full flex flex-col items-center gap-4">
+                <ImageUploader onUpload={onIconUpload} />
 
-            <div className="flex flex-col gap-4 w-full">
-                {/* ▼▼▼ 赤い付箋（シンプル版） ▼▼▼ */}
+                {/* 付箋テンプレート（ドラッグ元） */}
                 <div
-                    className="note note-red template-note cursor-grab p-2 text-center select-none"
-                    draggable // ◀◀◀ これだけでドラッグ可能になる！
+                    className="w-full h-64 rounded-lg shadow-md cursor-grab active:cursor-grabbing flex items-center justify-center font-bold text-gray-700 transition-transform hover:scale-105 hover:shadow-lg"
+                    style={{ backgroundColor: '#ff9999', border: '1px solid rgba(0,0,0,0.1)' }}
+                    draggable
                     onDragStart={(event) => onDragStart(event, 'note', 'r')}
                 >
-                    赤の付箋
+                    コメント
                 </div>
 
-                {/* ▼▼▼ 青い付箋（シンプル版） ▼▼▼ */}
                 <div
-                    className="note note-blue template-note cursor-grab p-2 text-center select-none"
+                    className="w-full h-64 rounded-lg shadow-md cursor-grab active:cursor-grabbing flex items-center justify-center font-bold text-gray-700 transition-transform hover:scale-105 hover:shadow-lg"
+                    style={{ backgroundColor: '#99ccff', border: '1px solid rgba(0,0,0,0.1)' }}
                     draggable
                     onDragStart={(event) => onDragStart(event, 'note', 'b')}
                 >
-                    青の付箋
+                    質問
                 </div>
             </div>
-            <div className="mt-8">
+
+            <div className="mt-8 w-full max-w-[200px]">
                 <button 
                     onClick={onTogglePdfViewer}
-                    className="w-full bg-gray-700 text-white font-bold py-2 px-4 rounded hover:bg-gray-600"
+                    className="w-full bg-gray-700 text-white font-bold py-3 px-4 rounded hover:bg-gray-600 shadow transition-colors"
                 >
                     PDFを開く
                 </button>

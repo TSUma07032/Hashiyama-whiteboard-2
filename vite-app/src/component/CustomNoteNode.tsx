@@ -3,6 +3,7 @@ import { type NodeProps, NodeResizeControl } from 'reactflow';
 import { Document, Page, pdfjs } from 'react-pdf';
 import type { ReplyData } from './index.d';
 import LinkifyText from './Linkify';
+import '../styles/Note.css';
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
@@ -83,6 +84,13 @@ const CustomNoteNode = ({ data, selected }: NodeProps) => {
         width: '20px', height: '20px',
         display: 'flex', justifyContent: 'center', alignItems: 'center'
     };
+    
+    const handleCheck = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        data.onToggleReadStatus(); // MainContentから受け取った関数を実行！
+    };
+
+    const opacity = data.isRead ? 0.6 : 1;
 
     return (
         <>
@@ -108,21 +116,44 @@ const CustomNoteNode = ({ data, selected }: NodeProps) => {
                         backgroundColor: 'white', border: '2px solid #ef4444',
                         color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center',
                         cursor: 'pointer', zIndex: 50, fontSize: '16px', fontWeight: 'bold', padding: 0,
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
                     }}
                     title="削除"
                 >
                     ×
                 </button>
 
+                <button 
+                    onClick={handleCheck}
+                    className="nodrag"
+                    style={{
+                        position: 'absolute', top: '-10px', left: '-10px',
+                        width: '24px', height: '24px', borderRadius: '50%',
+                        backgroundColor: data.isRead ? '#10b981' : 'white', // チェックなら緑！
+                        border: data.isRead ? '2px solid #10b981' : '2px solid #ccc',
+                        color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        cursor: 'pointer', zIndex: 50, fontSize: '14px', fontWeight: 'bold', padding: 0,
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                    }}
+                    title={data.isRead ? "未完了に戻す" : "完了にする"}
+                >
+                    {data.isRead && '✓'}
+                </button>
+
                 {/* アイコン */}
-                {data.icon && <img src={data.icon} alt="icon" style={{ position: 'absolute', top: '-16px', left: '-16px', width: '36px', height: '36px', borderRadius: '50%', border: '2px solid white', zIndex: 20, objectFit: 'cover', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }} />}
+                {data.icon && <img src={data.icon} alt="icon" className="user-icon-float" />}
 
                 {/* コンテンツエリア */}
                 <div style={{ flex: 1, width: '100%', overflow: 'hidden', padding: '12px' }}>
                     {data.type === 'pdf' && data.file_url ? (
-                        <div style={{ width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}> 
-                            <Document file={data.file_url} loading="..."><Page pageNumber={data.page_index || 1} renderMode={'svg' as any} width={200} className="pdf-svg-layer" renderAnnotationLayer={false} renderTextLayer={false} /></Document>
+                        <div className="pdf-high-res-canvas"> 
+                            <Document file={data.file_url} loading="...">
+                                <Page 
+                                    pageNumber={data.page_index || 1} 
+                                    width={parseInt(String(data.width || 200)) * 2} 
+                                    renderAnnotationLayer={false} 
+                                    renderTextLayer={false} 
+                                />
+                            </Document>
                         </div>
                     ) : (
                         isEditing ? (
@@ -140,8 +171,8 @@ const CustomNoteNode = ({ data, selected }: NodeProps) => {
                 </div>
 
                 {/* 返信エリア */}
-                <div className="nodrag" style={{ position: 'absolute', bottom: '-34px', left: '50%', transform: 'translateX(-50%)', zIndex: 30, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <button onClick={(e) => { e.stopPropagation(); setShowReplies(!showReplies); }} style={{ backgroundColor: 'white', padding: '4px 12px', borderRadius: '20px', boxShadow: '0 2px 5px rgba(0,0,0,0.15)', border: '1px solid #ddd', fontSize: '12px', color: '#555', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', whiteSpace: 'nowrap' }}>💬 {data.replies?.length > 0 ? data.replies.length : '+'}</button>
+                <div className="nodrag reply-container">
+                    <button onClick={(e) => { e.stopPropagation(); setShowReplies(!showReplies); }} style={{ backgroundColor: 'white', padding: '4px 10px', borderRadius: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.15)', border: '1px solid #ccc', fontSize: '12px', color: '#333', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', whiteSpace: 'nowrap' }}>💬 {data.replies?.length > 0 ? data.replies.length : '+'}</button>
                     {showReplies && (
                         <div style={{ position: 'absolute', top: '36px', left: '50%', transform: 'translateX(-50%)', width: '240px', backgroundColor: 'white', borderRadius: '8px', boxShadow: '0 8px 20px rgba(0,0,0,0.2)', border: '1px solid #ddd', padding: '10px', zIndex: 100 }}>
                             {data.replies?.length > 0 && <div style={{ maxHeight: '120px', overflowY: 'auto', marginBottom: '8px', textAlign: 'left' }}>{data.replies.map((reply: ReplyData) => <div key={reply.id} style={{ fontSize: '12px', borderBottom: '1px solid #eee', padding: '4px 0', color: '#333' }}>{reply.text}</div>)}</div>}
@@ -163,7 +194,7 @@ const CustomNoteNode = ({ data, selected }: NodeProps) => {
                 <ResizeIcon />
             </NodeResizeControl>
 
-            {/* 左上 (↖) は削除したぜぃ！ */}
+
         </>
     );
 };

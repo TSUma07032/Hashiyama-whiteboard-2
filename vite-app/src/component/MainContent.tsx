@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useMemo } from 'react'; // useMemo 追加
 import ReactFlow, { 
   ReactFlowProvider, 
   useReactFlow,      
@@ -21,10 +21,8 @@ type MainContentProps = {
     onDeleteNote: (id: string) => void;
     onDuplicateNote: (id: string) => void;
     onUpdateNote: (id: string, updates: Partial<NoteData>) => void;
+    onToggleReadStatus: (id: string) => void;
 };
-
-// ▼▼▼ 【修正1】関数の「外」に出す！これで警告は消える！ ▼▼▼
-const nodeTypes = { note: CustomNoteNode };
 
 function Flow({ 
     notes, 
@@ -33,13 +31,17 @@ function Flow({
     onEditNote, 
     onAddReply, 
     onDeleteNote, 
-    onDuplicateNote, // もし使ってなくても受け取っておく
-    onUpdateNote     // ◀ これだ！これを受け取ってるのに...
+    onDuplicateNote,
+    onUpdateNote,
+    onToggleReadStatus
 }: MainContentProps) {
     const reactFlowWrapper = useRef<HTMLDivElement>(null);
     const [nodes, setNodes, onNodesChangeReactFlow] = useNodesState([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
     const { screenToFlowPosition } = useReactFlow(); 
+
+    // ▼▼▼ 【修正1】useMemo で警告を完全封殺！ ▼▼▼
+    const nodeTypes = useMemo(() => ({ note: CustomNoteNode }), []);
 
     useEffect(() => {
         if (!notes) return;
@@ -56,20 +58,19 @@ function Flow({
                 onChangeText: (newText: string) => onEditNote(note.id, newText),
                 onAddReply: (replyText: string) => onAddReply(note.id, replyText),
                 onDelete: onDeleteNote,
-                
-                // ▼▼▼ 【修正2】ここだあああ！これを忘れてた！！ ▼▼▼
-                // これがないと CustomNoteNode で data.onUpdateNote が undefined になる！
+                onDuplicate: onDuplicateNote,
                 onUpdateNote: onUpdateNote, 
-                // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+                onToggleReadStatus: () => onToggleReadStatus(note.id),
             }, 
             
+            // width/height は style に渡す！（これも重要！）
             style: { 
                 width: note.width || 200,
                 height: note.height || 100,
             },
         }));
         setNodes(flowNodes);
-    }, [notes, setNodes, onEditNote, onAddReply, onDeleteNote, onUpdateNote]); // 依存配列にも忘れずに！
+    }, [notes, setNodes, onEditNote, onAddReply, onDeleteNote, onDuplicateNote, onUpdateNote]);
 
     const onNodeDragStop: NodeDragHandler = useCallback((e, node) => {
         onNotesChange(node.id, node.position.x, node.position.y);
@@ -94,18 +95,29 @@ function Flow({
         [screenToFlowPosition, onAddNote]
     );
 
+    // ▼▼▼ クリック・ドラッグで最前面へ（前回の追加分） ▼▼▼
+    const onNodeClick = useCallback((event: React.MouseEvent, node: any) => {
+        onUpdateNote(node.id, { z_index: Date.now() });
+    }, [onUpdateNote]);
+
+    const onNodeDragStart: NodeDragHandler = useCallback((event, node) => {
+        onUpdateNote(node.id, { z_index: Date.now() });
+    }, [onUpdateNote]);
+
     return (
-        <div ref={reactFlowWrapper} style={{ width: '100%', height: '100%' }}>
+        <div ref={reactFlowWrapper} style={{ width: '100%', height: '100%' }} className="main-content-area">
             <ReactFlow
                 nodes={nodes}
                 onNodesChange={onNodesChangeReactFlow}
                 onEdgesChange={onEdgesChange}
                 onNodeDragStop={onNodeDragStop}
-                nodeTypes={nodeTypes}
+                nodeTypes={nodeTypes} // useMemoしたやつを渡す
                 fitView
                 onDragOver={onDragOver}
                 onDrop={onDrop}
-                minZoom={0.1} // ズーム制限解除も忘れずに
+                onNodeClick={onNodeClick}
+                onNodeDragStart={onNodeDragStart}
+                minZoom={0.1}
                 maxZoom={4}
             >
                 <Background color="#aaa" gap={16} />

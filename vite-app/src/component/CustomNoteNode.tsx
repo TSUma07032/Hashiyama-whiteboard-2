@@ -66,7 +66,7 @@ const CustomNoteNode = ({ data, selected }: NodeProps) => {
         if (window.confirm("消しちゃう？")) data.onDelete(data.id);
     };
 
-    const onResizeEnd = useCallback((event: any, params: any) => {
+    const onResizeEnd = useCallback((_event: any, params: any) => {
         const { width, height } = params;
         data.onUpdateNote(data.id, { 
             width: Math.round(width),   // 小数点が出ることあるから丸める！
@@ -90,7 +90,6 @@ const CustomNoteNode = ({ data, selected }: NodeProps) => {
         data.onToggleReadStatus(); // MainContentから受け取った関数を実行！
     };
 
-    const opacity = data.isRead ? 0.6 : 1;
 
     return (
         <>

@@ -1,11 +1,11 @@
 // Layout.tsx
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import Header from './Header';
 import LeftSidebar from './LeftSidebar';
 import RightSidebar from './RightSidebar';
 import MainContent from './MainContent'; // MainContentコンポーネントをインポート
-import NoteList from './NoteList'; // NoteListコンポーネントをインポート
-import NoteInput from './NoteInput'; // NoteInputをインポート
+// import NoteList from './NoteList'; // NoteListコンポーネントをインポート
+// import NoteInput from './NoteInput'; // NoteInputをインポート
 import { DndContext, type DragEndEvent, type DragStartEvent, MouseSensor, useSensor, useSensors} from '@dnd-kit/core';
 import { nanoid } from "nanoid"; // nanoidをインポート(TODO: firebaseが付与するIDに変更予定)
 import type { NoteData, ReplyData } from './index.d'; // NoteData型をインポート
@@ -39,11 +39,10 @@ export default function Layout() {
     const [_activeId, setActiveId] = useState<string | null>(null);
     const mainContentRef = useRef<HTMLElement>(null); 
     const [uploadedIcon, setUploadedIcon] = useState<string | null>(null);
-    const [scale, setScale] = useState<number>(1);
+    const [scale, _setScale] = useState<number>(1);
 
-    const [leftWidth, setLeftWidth] = useState(260); // デフォルト幅
-    const [rightWidth, setRightWidth] = useState(260);
-    const [isResizing, setIsResizing] = useState(false); //  ドラッグ中にiframeに吸われない対策
+    const [_leftWidth, setLeftWidth] = useState(260); // デフォルト幅
+    const [_rightWidth, setRightWidth] = useState(260);
 
     const [viewpoint, setViewpoint] = useState({ x: 0, y: 0 });
     const [isPanning, setIsPanning] = useState(false);
@@ -185,13 +184,7 @@ export default function Layout() {
         };
     }, [resizingSide]);
 
-    const startResizing = (side: 'left' | 'right') => (e: React.MouseEvent) => {
-        e.preventDefault(); // テキスト選択などを防止
-        setResizingSide(side);
-        document.body.style.cursor = 'col-resize';
-        // ドラッグ中は文字選択などを禁止して、操作性を上げる
-        document.body.style.userSelect = 'none';
-    };
+
 
     // ▼▼▼ 2. 一括削除機能の実装 ▼▼▼
     const handleDeleteAll = async () => {
@@ -438,28 +431,6 @@ export default function Layout() {
         }
     };
 
-    // ◀◀◀ "async" を追加！
-    const handleResizeNote = async (id: string, newWidth: number, newHeight: number) => {
-        try {
-            // 1. DBの 'width' と 'height' カラムを更新
-            const { error } = await supabase
-                .from('notes')
-                .update({ width: newWidth, height: newHeight }) // 2つ同時更新
-                .eq('id', id);
-
-            if (error) throw error;
-
-            // 2. DB更新が成功したら、ローカルstateも更新
-            setNotes((prevNotes) =>
-                prevNotes.map((note) =>
-                    note.id === id ? { ...note, width: newWidth, height: newHeight } : note
-                )
-            );
-        } catch (error) {
-            console.error('リサイズ地獄:', error);
-            alert(`リサイズに失敗した: ${(error as Error).message}`);
-        }
-    };
 
     // ノート削除処理
     const handleDelete = async (idToDelete: string) => {
@@ -649,37 +620,6 @@ export default function Layout() {
             alert(`既読状態の更新に失敗した: ${(error as Error).message}`);
         }
     };
-
-    const handleZoomIn = () => {
-        setScale(prevScale => Math.min(prevScale * 1.2, 2)); // 1.2倍ずつ拡大（最大2倍）
-    };
-
-    const handleZoomOut = () => {
-        setScale(prevScale => Math.max(prevScale / 1.2, 0.5)); // 1.2倍ずつ縮小（最小0.5倍）
-    };
-
-    const handleZoomReset = () => {
-        setScale(1); // 100%表示に戻す
-    };
-
-    const handlePanStart = useCallback((e: React.MouseEvent) => {
-        const target = e.target as HTMLElement;
-
-        // クリックした要素、またはその親に data-dnd-draggable 属性があったら、パン操作をしな
-        if (target.closest('[data-dnd-draggable="true"]')) {
-            return;
-        }
-
-        // こっちのガードマンも重要
-        if (target.closest('[data-no-pan="true"]')) {
-            return;
-        }
-        
-        // ガードを突破したものだけが、パン操作を開始できる
-        e.preventDefault();
-        panStartRef.current = { x: e.clientX, y: e.clientY };
-        setIsPanning(true);
-    }, []);
 
     const handlePanMove = useCallback((e: MouseEvent) => {
         if (!isPanning) return;

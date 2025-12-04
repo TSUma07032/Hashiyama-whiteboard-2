@@ -37,7 +37,7 @@ function Flow({
 }: MainContentProps) {
     const reactFlowWrapper = useRef<HTMLDivElement>(null);
     const [nodes, setNodes, onNodesChangeReactFlow] = useNodesState([]);
-    const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+    const [_edges, _setEdges, onEdgesChange] = useEdgesState([]);
     const { screenToFlowPosition } = useReactFlow(); 
 
     // ▼▼▼ 【修正1】useMemo で警告を完全封殺！ ▼▼▼
@@ -72,7 +72,7 @@ function Flow({
         setNodes(flowNodes);
     }, [notes, setNodes, onEditNote, onAddReply, onDeleteNote, onDuplicateNote, onUpdateNote]);
 
-    const onNodeDragStop: NodeDragHandler = useCallback((e, node) => {
+    const onNodeDragStop: NodeDragHandler = useCallback((_e, node) => {
         onNotesChange(node.id, node.position.x, node.position.y);
     }, [onNotesChange]);
 
@@ -87,7 +87,7 @@ function Flow({
             const reactFlowData = event.dataTransfer.getData('application/reactflow');
             if (!reactFlowData) return;
 
-            const { type, color } = JSON.parse(reactFlowData);
+            const { color } = JSON.parse(reactFlowData);
             const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
 
             onAddNote('', color, position.x, position.y);
@@ -96,11 +96,11 @@ function Flow({
     );
 
     // ▼▼▼ クリック・ドラッグで最前面へ（前回の追加分） ▼▼▼
-    const onNodeClick = useCallback((event: React.MouseEvent, node: any) => {
+    const onNodeClick = useCallback((_event: React.MouseEvent, node: any) => {
         onUpdateNote(node.id, { z_index: Date.now() });
     }, [onUpdateNote]);
 
-    const onNodeDragStart: NodeDragHandler = useCallback((event, node) => {
+    const onNodeDragStart: NodeDragHandler = useCallback((_event, node) => {
         onUpdateNote(node.id, { z_index: Date.now() });
     }, [onUpdateNote]);
 

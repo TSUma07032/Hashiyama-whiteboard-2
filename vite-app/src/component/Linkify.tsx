@@ -1,4 +1,3 @@
-import React from 'react';
 import 'reactflow/dist/style.css'; // React Flowのスタイルをインポート
 
 // URLを検出して <a> タグにするコンポーネント

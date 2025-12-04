@@ -6,20 +6,6 @@ type Props = {
     isLocked?: boolean; // ロック機能復活させたい時のため
 };
 
-// 見た目は小さく、判定はデカくする「魔法のハンドル」スタイル
-const handleStyle: React.CSSProperties = {
-    width: '20px',   // 当たり判定は20px！デカい！
-    height: '20px',
-    borderRadius: '50%',
-    backgroundColor: 'transparent', // 透明！
-    border: 'none',
-    zIndex: 100, // 最前面
-    // ↓ ここがミソ！「見た目」はCSSの ::after とかで描くか、
-    //    今回は簡易的に「背景画像」とかでやる手もあるが、
-    //    一番確実なのは「透明なデカいハンドルの真ん中に、色付きの小さい点を描く」ことだ。
-    //    でも NodeResizer の仕様上、styleしか渡せないので、
-    //    「当たり判定優先」でデザインは妥協するか、CSSで頑張るかだ！
-};
 
 // 今回は「確実に掴める」ことを最優先にして、少しデカめのまま行くぞ！
 // ユーザーが慣れたら小さくすればいい。

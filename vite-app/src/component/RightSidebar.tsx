@@ -14,6 +14,7 @@ type RightSidebarProps = {
     notes: NoteData[];
     onAddReply: (noteId: string, replyText: string) => void;
     onToggleReadStatus: (noteId: string) => void;
+    onJump: (id: string) => void;
 };
 
 // サイドバーの中だけで使う、返信入力用のミニコンポーネント
@@ -42,10 +43,11 @@ const ReplyInput = ({ onAddReply, onCancel }: { onAddReply: (text: string) => vo
     );
 };
 
-export default function RightSidebar({ className, notes, onAddReply, onToggleReadStatus }: RightSidebarProps) {
+export default function RightSidebar({ className, notes, onAddReply, onToggleReadStatus, onJump }: RightSidebarProps) {
 
     const [activeTab, setActiveTab] = useState<'question' | 'comment'>('question');
     const [replyingToId, setReplyingToId] = useState<string | null>(null);
+    const pdfNotes = notes.filter(n => n.type === 'pdf' && n.page_index === 1);
 
     const filteredNotes = notes.filter(note => {
         if (activeTab === 'question') {
@@ -57,6 +59,27 @@ export default function RightSidebar({ className, notes, onAddReply, onToggleRea
 
     return (
         <aside className={`w-full bg-gray-100 p-2 shadow-lg rounded-l-lg flex flex-col ${className || ''}`}>
+
+            <h3 className="font-bold text-gray-700 mb-4">📑 資料目次</h3>
+            
+            <div className="flex flex-col gap-2">
+                {pdfNotes.length === 0 && <p className="text-gray-400 text-sm">資料がありません</p>}
+                
+                {pdfNotes.map((note, index) => (
+                    <button
+                        key={note.id}
+                        onClick={() => onJump(note.id)}
+                        className="text-left p-3 bg-white border border-gray-200 rounded shadow-sm hover:bg-blue-50 hover:border-blue-300 transition-colors flex items-center gap-2"
+                    >
+                        <span className="text-lg">📄</span>
+                        <div className="flex-1 min-w-0">
+                            {/* ファイル名とかがあればいいけど、今は text か index で代用 */}
+                            <p className="text-sm font-bold truncate">資料 {index + 1}</p>
+                            <p className="text-xs text-gray-500">Page 1</p>
+                        </div>
+                    </button>
+                ))}
+            </div>
             
             <div className="flex border-b-2">
                 <button

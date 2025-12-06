@@ -169,3 +169,71 @@
   flex-direction: column;
   align-items: center;
 }
+
+/* --- 右クリックメニュー (Context Menu) --- */
+.context-menu-container {
+  position: absolute;
+  z-index: 999999 !important; /* 誰にも負けない最強のZ-index！ */
+  cursor: default;
+  /* アニメーション用 */
+  animation: fadeIn 0.1s ease-out;
+}
+
+.context-menu-card {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+}
+
+.context-menu-header {
+  background-color: #f9fafb;
+  padding: 8px 16px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.context-menu-body {
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.context-menu-btn {
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: background-color 0.1s;
+  border: none;
+  background: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.context-menu-btn.delete {
+  color: #dc2626; /* 赤 */
+  font-weight: bold;
+}
+.context-menu-btn.delete:hover {
+  background-color: #fef2f2; /* 薄い赤背景 */
+}
+
+.context-menu-btn.cancel {
+  color: #4b5563; /* グレー */
+}
+.context-menu-btn.cancel:hover {
+  background-color: #f3f4f6; /* 薄いグレー背景 */
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}

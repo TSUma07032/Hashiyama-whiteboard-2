@@ -61,11 +61,6 @@ const CustomNoteNode = ({ data, selected }: NodeProps) => {
         }
     };
 
-    const handleDelete = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (window.confirm("消しちゃう？")) data.onDelete(data.id);
-    };
-
     const onResizeEnd = useCallback((_event: any, params: any) => {
         const { width, height } = params;
         data.onUpdateNote(data.id, { 
@@ -105,21 +100,6 @@ const CustomNoteNode = ({ data, selected }: NodeProps) => {
                     display: 'flex', flexDirection: 'column',
                 }}
             >
-                {/* 削除ボタン */}
-                <button 
-                    onClick={handleDelete}
-                    className="nodrag"
-                    style={{
-                        position: 'absolute', top: '-10px', right: '-10px',
-                        width: '24px', height: '24px', borderRadius: '50%',
-                        backgroundColor: 'white', border: '2px solid #ef4444',
-                        color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        cursor: 'pointer', zIndex: 50, fontSize: '16px', fontWeight: 'bold', padding: 0,
-                    }}
-                    title="削除"
-                >
-                    ×
-                </button>
 
                 <button 
                     onClick={handleCheck}

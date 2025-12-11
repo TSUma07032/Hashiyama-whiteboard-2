@@ -1,4 +1,4 @@
-import React, { memo, useState, useEffect, useCallback, useRef } from 'react';
+import React, { memo, useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
 import { type NodeProps, NodeResizeControl } from 'reactflow';
 import { Document, Page, pdfjs } from 'react-pdf';
 import type { ReplyData } from './index.d';
@@ -10,32 +10,39 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url,
 ).toString();
 
-// リサイズハンドル (見た目)
 const ResizeIcon = () => (
-    <div style={{
-        width: '12px', 
-        height: '12px',
-        background: '#ffffff',
-        border: '2px solid #2563eb', 
-        borderRadius: '50%',
-        boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
-    }} />
+    <div style={{ width: '12px', height: '12px', background: '#ffffff', border: '2px solid #2563eb', borderRadius: '50%', boxShadow: '0 1px 2px rgba(0,0,0,0.2)' }} />
 );
 
 const CustomNoteNode = ({ data, selected }: NodeProps) => {
-    // --- 状態管理 ---
+    // --- State ---
     const [isEditing, setIsEditing] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const wrapperRef = useRef<HTMLDivElement>(null);
+    const dummyRef = useRef<HTMLDivElement>(null); 
     const [localText, setLocalText] = useState(data.text);
     const [replyText, setReplyText] = useState('');
     const [showReplies, setShowReplies] = useState(false);
+    const [minHeight, setMinHeight] = useState(60); 
 
     useEffect(() => { setLocalText(data.text); }, [data.text]);
 
-    const handleDoubleClick = useCallback((e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (data.type !== 'pdf') setIsEditing(true);
-    }, [data.type]);
+    // 高さ自動計算
+    useLayoutEffect(() => {
+        if (data.type === 'pdf') return;
+        const updateMinHeight = () => {
+            if (dummyRef.current) {
+                const contentHeight = dummyRef.current.offsetHeight + 40;
+                setMinHeight(Math.max(60, contentHeight));
+            }
+        };
+        updateMinHeight();
+        const observer = new ResizeObserver(() => updateMinHeight());
+        if (wrapperRef.current) observer.observe(wrapperRef.current);
+        return () => observer.disconnect();
+    }, [localText, data.type]);
+
+    // ★★★ ダブルクリックハンドラは削除！ ★★★
 
     const handleBlur = useCallback(() => {
         setIsEditing(false);
@@ -45,9 +52,8 @@ const CustomNoteNode = ({ data, selected }: NodeProps) => {
     useEffect(() => {
         if (isEditing && textareaRef.current) {
             textareaRef.current.focus();
-            setTimeout(() => {
-                textareaRef.current?.setSelectionRange(textareaRef.current.value.length, textareaRef.current.value.length);
-            }, 0);
+            const len = textareaRef.current.value.length;
+            textareaRef.current.setSelectionRange(len, len);
         }
     }, [isEditing]);
 
@@ -61,97 +67,99 @@ const CustomNoteNode = ({ data, selected }: NodeProps) => {
         }
     };
 
-    const onResizeEnd = useCallback((_event: any, params: any) => {
+    const handleDelete = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (window.confirm("消しちゃう？")) data.onDelete(data.id);
+    };
+
+    const handleCheck = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        data.onToggleReadStatus();
+    };
+
+    const handleResizeEnd = useCallback((_event: any, params: any) => {
         const { width, height } = params;
-        data.onUpdateNote(data.id, { 
-            width: Math.round(width),   // 小数点が出ることあるから丸める！
-            height: Math.round(height) 
-        });
+        data.onUpdateNote(data.id, { width: Math.round(width), height: Math.round(height) });
     }, [data]);
 
     const bgColor = data.type === 'pdf' ? '#ffffff' : (data.color === 'r' ? '#ff9999' : '#99ccff');
     const borderStyle = selected ? '3px solid #2563eb' : '1px solid rgba(0,0,0,0.2)';
+    const opacity = data.isRead ? 0.6 : 1;
 
-    // リサイズハンドルの共通スタイル
-    const controlStyle = {
-        background: 'transparent',
-        border: 'none',
-        width: '20px', height: '20px',
-        display: 'flex', justifyContent: 'center', alignItems: 'center'
-    };
-    
-    const handleCheck = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        data.onToggleReadStatus(); // MainContentから受け取った関数を実行！
-    };
-
+    const controlStyle = { background: 'transparent', border: 'none', width: '20px', height: '20px', display: 'flex', justifyContent: 'center', alignItems: 'center' };
 
     return (
         <>
-            {/* ▼▼▼ 本体を先に書く！ ▼▼▼ */}
+            <NodeResizeControl position="bottom-right" style={{ ...controlStyle, cursor: 'nwse-resize', right: -6, bottom: -6 }} onResizeEnd={handleResizeEnd} minWidth={150} minHeight={minHeight}><ResizeIcon /></NodeResizeControl>
+            <NodeResizeControl position="bottom-left" style={{ ...controlStyle, cursor: 'nesw-resize', left: -6, bottom: -6 }} onResizeEnd={handleResizeEnd} minWidth={150} minHeight={minHeight}><ResizeIcon /></NodeResizeControl>
+
             <div 
-                onDoubleClick={handleDoubleClick}
+                ref={wrapperRef}
+                // onDoubleClick={handleDoubleClick} ◀◀◀ 削除！もうダブルクリックでは反応しない！
                 className={`custom-note-wrapper ${isEditing ? 'nodrag cursor-text' : 'cursor-grab'}`}
                 style={{ 
-                    backgroundColor: bgColor, width: '100%', height: '100%',
-                    border: borderStyle, borderRadius: '4px',
-                    position: 'relative', overflow: 'visible',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.2)',
-                    display: 'flex', flexDirection: 'column',
+                    width: '100%', height: '100%', position: 'relative', overflow: 'visible',
+                    opacity: opacity, filter: data.isRead ? 'grayscale(80%)' : 'none',
+                    transition: 'opacity 0.3s, filter 0.3s'
                 }}
             >
+                {/* 影武者エリア */}
+                {data.type !== 'pdf' && (
+                    <div
+                        ref={dummyRef}
+                        className="note-text-display"
+                        style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: 'auto', visibility: 'hidden', pointerEvents: 'none', zIndex: -999, padding: '12px', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}
+                    >
+                        {localText || 'テキストを入力...'}
+                    </div>
+                )}
 
-                <button 
-                    onClick={handleCheck}
-                    className="nodrag"
-                    style={{
-                        position: 'absolute', top: '-10px', left: '-10px',
-                        width: '24px', height: '24px', borderRadius: '50%',
-                        backgroundColor: data.isRead ? '#10b981' : 'white', // チェックなら緑！
-                        border: data.isRead ? '2px solid #10b981' : '2px solid #ccc',
-                        color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        cursor: 'pointer', zIndex: 50, fontSize: '14px', fontWeight: 'bold', padding: 0,
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                    }}
-                    title={data.isRead ? "未完了に戻す" : "完了にする"}
-                >
-                    {data.isRead && '✓'}
-                </button>
-
-                {/* アイコン */}
+                {/* 装飾パーツ */}
+                <button onClick={handleDelete} className="nodrag delete-btn" title="削除">×</button>
+                <button onClick={handleCheck} className={`nodrag check-btn ${data.isRead ? 'checked' : 'unchecked'}`}>{data.isRead && '✓'}</button>
                 {data.icon && <img src={data.icon} alt="icon" className="user-icon-float" />}
 
-                {/* コンテンツエリア */}
-                <div style={{ flex: 1, width: '100%', overflow: 'hidden', padding: '12px' }}>
-                    {data.type === 'pdf' && data.file_url ? (
-                        <div className="pdf-high-res-canvas"> 
-                            <Document file={data.file_url} loading="...">
-                                <Page 
-                                    pageNumber={data.page_index || 1} 
-                                    width={parseInt(String(data.width || 200)) * 2} 
-                                    renderAnnotationLayer={false} 
-                                    renderTextLayer={false} 
-                                />
-                            </Document>
-                        </div>
-                    ) : (
-                        isEditing ? (
-                            <textarea 
-                                ref={textareaRef} 
-                                style={{ width: '100%', height: '100%', backgroundColor: 'transparent', border: 'none', outline: 'none', resize: 'none', fontSize: '14px', color: '#000', fontWeight: '500', lineHeight: '1.5' }}
-                                value={localText} onChange={handleChange} onBlur={handleBlur}
-                            />
-                        ) : (
-                            <div style={{ width: '100%', height: '100%', fontSize: '14px', color: '#000', fontWeight: '500', whiteSpace: 'pre-wrap', overflowY: 'hidden', lineHeight: '1.5' }}>
-                                {localText ? <LinkifyText text={localText} /> : <span style={{color: 'rgba(0,0,0,0.4)', fontStyle: 'italic'}}>ダブルクリックで入力</span>}
-                            </div>
-                        )
-                    )}
-                </div>
+                {/* ▼▼▼ 下部エリア（返信＆編集ボタン） ▼▼▼ */}
+                <div 
+                    className="nodrag reply-container"
+                    // style={{ ... }} ← CSS (Note.css) に任せるので削除、または微調整
+                >
+                    {/* ボタンを横並びにするコンテナ */}
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        
+                        {/* 1. 返信トグルボタン */}
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); setShowReplies(!showReplies); }}
+                            style={{ 
+                                backgroundColor: 'white', padding: '4px 10px', borderRadius: '16px', 
+                                boxShadow: '0 2px 4px rgba(0,0,0,0.15)', border: '1px solid #ccc',
+                                fontSize: '12px', color: '#333', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px',
+                                cursor: 'pointer', whiteSpace: 'nowrap'
+                            }}
+                        >
+                            💬 {data.replies?.length > 0 ? data.replies.length : '返信'}
+                        </button>
 
-                {/* 返信エリア */}
-                <div className="nodrag reply-container">
-                    <button onClick={(e) => { e.stopPropagation(); setShowReplies(!showReplies); }} style={{ backgroundColor: 'white', padding: '4px 10px', borderRadius: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.15)', border: '1px solid #ccc', fontSize: '12px', color: '#333', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', whiteSpace: 'nowrap' }}>💬 {data.replies?.length > 0 ? data.replies.length : '+'}</button>
+                        {/* ▼▼▼ 2. 編集ボタン（新規追加！） ▼▼▼ */}
+                        {!isEditing && data.type !== 'pdf' && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIsEditing(true); // 編集モードON！
+                                }}
+                                style={{ 
+                                    backgroundColor: 'white', padding: '4px 10px', borderRadius: '16px', 
+                                    boxShadow: '0 2px 4px rgba(0,0,0,0.15)', border: '1px solid #ccc',
+                                    fontSize: '12px', color: '#333', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px',
+                                    cursor: 'pointer', whiteSpace: 'nowrap'
+                                }}
+                            >
+                                ✏️ 編集
+                            </button>
+                        )}
+                    </div>
+
+                    {/* 返信展開ボックス (位置はそのまま) */}
                     {showReplies && (
                         <div style={{ position: 'absolute', top: '36px', left: '50%', transform: 'translateX(-50%)', width: '240px', backgroundColor: 'white', borderRadius: '8px', boxShadow: '0 8px 20px rgba(0,0,0,0.2)', border: '1px solid #ddd', padding: '10px', zIndex: 100 }}>
                             {data.replies?.length > 0 && <div style={{ maxHeight: '120px', overflowY: 'auto', marginBottom: '8px', textAlign: 'left' }}>{data.replies.map((reply: ReplyData) => <div key={reply.id} style={{ fontSize: '12px', borderBottom: '1px solid #eee', padding: '4px 0', color: '#333' }}>{reply.text}</div>)}</div>}
@@ -159,21 +167,31 @@ const CustomNoteNode = ({ data, selected }: NodeProps) => {
                         </div>
                     )}
                 </div>
+
+                {/* 内箱 */}
+                <div style={{ width: '100%', height: '100%', overflow: 'hidden', borderRadius: '4px', backgroundColor: bgColor, border: borderStyle, boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.2)', }}>
+                    <div className="note-content">
+                        {data.type === 'pdf' && data.file_url ? (
+                            <div className="pdf-high-res-canvas"> 
+                                <Document file={data.file_url} loading="..."><Page pageNumber={data.page_index || 1} width={parseInt(String(data.width || 200)) * 2} renderAnnotationLayer={false} renderTextLayer={false} /></Document>
+                            </div>
+                        ) : (
+                            isEditing ? (
+                                <textarea 
+                                    ref={textareaRef} 
+                                    className="nodrag note-textarea"
+                                    value={localText} onChange={handleChange} onBlur={handleBlur}
+                                />
+                            ) : (
+                                <div className="note-text-display">
+                                    {/* 文言をシンプルに */}
+                                    {localText ? <LinkifyText text={localText} /> : <span style={{color: 'rgba(0,0,0,0.4)', fontStyle: 'italic'}}>テキストを入力...</span>}
+                                </div>
+                            )
+                        )}
+                    </div>
+                </div>
             </div>
-
-            {/* ▼▼▼ ハンドル調整！ ▼▼▼ */}
-            
-            {/* 右下 (↘)：-5 -> -2 に寄せる！ */}
-            <NodeResizeControl position="bottom-right" style={{ ...controlStyle, cursor: 'nwse-resize', right: -2, bottom: -2 }} onResizeEnd={onResizeEnd}>
-                <ResizeIcon />
-            </NodeResizeControl>
-
-            {/* 左下 (↙)：-5 -> -2 に寄せる！ */}
-            <NodeResizeControl position="bottom-left" style={{ ...controlStyle, cursor: 'nesw-resize', left: -2, bottom: -2 }} onResizeEnd={onResizeEnd}>
-                <ResizeIcon />
-            </NodeResizeControl>
-
-
         </>
     );
 };

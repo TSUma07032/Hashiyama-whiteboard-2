@@ -775,7 +775,7 @@ export default function Layout() {
                                     notes={notes}
                                     onAddReply={handleAddReply}
                                     onToggleReadStatus={handleToggleReadStatus}
-                                    onJump={(id) => setJumpTargetId(id)} // ◀ ジャンプ要求を受け取る
+                                    onJump={(id) => setJumpTargetId(id)}
                                 />
                             </div>
                         </Panel>

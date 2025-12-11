@@ -47,7 +47,6 @@
   list-style: none; /* デフォルトの黒丸を消す！ */
   padding-left: 0;
   margin: 0;
-  space-y: 16px;
 }
 
 /* --- リストアイテムのデザイン --- */

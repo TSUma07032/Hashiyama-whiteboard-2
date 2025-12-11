@@ -218,71 +218,83 @@ export default function Layout() {
         viewpointRef.current = viewpoint;
     }, [viewpoint]);
 
-    const handleAddPdfNote = async (url: string, pageIndex: number) => {
-        const noteToInsert = {
-            text: '', // テキストは空でOK
-            x: DEFAULT_NOTE_POSITION.x, // 適当な位置
-            y: DEFAULT_NOTE_POSITION.y,
-            width: 320,  // PDF用にちょっと大きくしとくか
-            height: 450, // 縦長に
-            color: 'white', // PDFは白背景が見やすい
-            type: 'pdf', // ◀◀◀ タイプはPDF！
-            file_url: url, // ◀◀◀ URL保存
-            page_index: pageIndex, // ◀◀◀ ページ番号保存
-            replies: [],
-            isRead: false,
-        };
+    // ▼▼▼ 1. 一番下の Y座標 を計算するヘルパー関数 ▼▼▼
+    const getBottomY = () => {
+        if (notes.length === 0) return 150; // 何もなければ初期位置
+        // 全ノードのお尻 (y + height) の中で最大値を探す！
+        // ※ height が undefined の場合は適当に 450 (PDFの高さ) と仮定
+        return Math.max(...notes.map(n => n.y + (n.height || 450)));
+    };
 
-        // DBにインサート！
-        const { data } = await supabase.from('notes').insert(noteToInsert).select();
-        if (data) {
-            setNotes((prev) => [...prev, data[0] as NoteData]);
-        }
+
+    // ▼▼▼ 2. 単発追加 (縦積み版) ▼▼▼
+    const handleAddPdfNote = async (url: string, pageIndex: number) => {
+        const startY = getBottomY() + 100; // 一番下 + 余白100px
+
+        const noteToInsert = {
+            text: '', 
+            x: 50, // Xは常に固定（中央レーン）
+            y: startY, 
+            width: 600, // デカくしたサイズ
+            height: 850, 
+            color: 'white', 
+            type: 'pdf', 
+            file_url: url, 
+            page_index: pageIndex, 
+            replies: [], 
+            isRead: false,
+           // is_locked: true // 単発追加はロックしない
+        };
+        await supabase.from('notes').insert(noteToInsert);
     };
 
     const handleAddAllPdfPages = async (url: string, totalPages: number) => {
-        const PDF_NOTE_WIDTH = 320; // PDF付箋の幅
-        const GAP = 20; // 付箋同士の隙間
+        // --- 巨大化設定 ---
+        const PDF_NOTE_WIDTH = 1600; 
+        const PDF_NOTE_HEIGHT = 2250;
+        const COLS = 10; // 10ページで折り返し
 
-        // 1. 挿入するデータ（配列）を一気に作る！
-        const notesToInsert = [];
+        // --- 隙間設定 (ここがキモ！) ---
+        const GAP_X = 100; // 横の隙間 (100pxあれば十分か？)
+        
+        // 要望2: 縦の隙間は「PDFファイル一つ分」空ける！
+        // つまり、次の行までのピッチは「高さ + 高さ(隙間)」
+        const ROW_PITCH = PDF_NOTE_HEIGHT + PDF_NOTE_HEIGHT; 
 
+        // 要望3: 別のPDFファイルは「PDFファイル二つ分」空ける！
+        const FILE_MARGIN = PDF_NOTE_HEIGHT * 2;
+
+        // 開始位置計算
+        // getBottomY() は「既存の付箋の底辺」を返すから、そこに「2つ分の高さ」を足す！
+        const startY = getBottomY() + FILE_MARGIN; 
+        const startX = 50; 
+
+        const inserts = [];
         for (let i = 0; i < totalPages; i++) {
-            notesToInsert.push({
+            const col = i % COLS;
+            const row = Math.floor(i / COLS);
+
+            // 座標決定
+            const x = startX + col * (PDF_NOTE_WIDTH + GAP_X);
+            // 行ごとの間隔を「ROW_PITCH (高さ2倍分)」にする！
+            const y = startY + row * ROW_PITCH;
+
+            inserts.push({
                 text: '', 
-                // X座標を「幅 + 隙間」分だけズラしていく！
-                // これで横一列にズラァァァっと並ぶぜぃ！
-                x: DEFAULT_NOTE_POSITION.x + i * (PDF_NOTE_WIDTH + GAP), 
-                y: DEFAULT_NOTE_POSITION.y,
-                width: PDF_NOTE_WIDTH,
-                height: 450,
-                color: 'white',
-                type: 'pdf', // index.d.ts で追加したヤツな！
-                file_url: url,
-                page_index: i + 1, // ページ番号は 1 からスタート
-                replies: [],
-                isRead: false,
+                x: x, 
+                y: y, 
+                width: PDF_NOTE_WIDTH, 
+                height: PDF_NOTE_HEIGHT, 
+                color: 'white', 
+                type: 'pdf', 
+                file_url: url, 
+                page_index: i + 1, 
+                replies: [], 
+                is_locked: true,
+                isRead: false
             });
         }
-
-        try {
-            // 2. Supabase に配列をドン！と渡して一括インサート！
-            const { data, error } = await supabase
-                .from('notes')
-                .insert(notesToInsert) // ◀ 配列を渡せばBulk Insertになる！
-                .select();
-
-            if (error) throw error;
-
-            // 3. 成功したらローカルstateにも一気に追加！
-            if (data) {
-                setNotes((prev) => [...prev, ...data as NoteData[]]);
-                console.log(`${data.length} ページ分のPDFを一括召喚したぜぃ！`);
-            }
-        } catch (error) {
-            console.error('一括追加失敗:', error);
-            alert('一括追加に失敗したぞ、ざぁこ♡');
-        }
+        await supabase.from('notes').insert(inserts);
     };
 
     // ↓↓↓ ドラッグ開始時のカーソル位置を記憶するための箱を追加！ ↓↓↓
@@ -680,6 +692,8 @@ export default function Layout() {
         };
     }, [isPanning, handlePanMove, handlePanEnd]);
 
+    const [jumpTargetId, setJumpTargetId] = useState<string | null>(null);
+
     return (
         <DndContext onDragEnd={handleDragEnd} onDragStart={handleDragStart} sensors={sensors}>
             
@@ -739,6 +753,8 @@ export default function Layout() {
                                     onDuplicateNote={handleDuplicateNote}
                                     onUpdateNote={handleUpdateNote}
                                     onToggleReadStatus={handleToggleReadStatus}
+                                    jumpTargetId={jumpTargetId} // ◀ 指令を送る
+                                    onJumpComplete={() => setJumpTargetId(null)} // ◀ 完了したらリセット
                                 />
                             </div>
                         </Panel>
@@ -759,6 +775,7 @@ export default function Layout() {
                                     notes={notes}
                                     onAddReply={handleAddReply}
                                     onToggleReadStatus={handleToggleReadStatus}
+                                    onJump={(id) => setJumpTargetId(id)}
                                 />
                             </div>
                         </Panel>

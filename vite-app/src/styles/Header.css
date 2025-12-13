@@ -1,0 +1,161 @@
+/* --- ヘッダー全体の枠 --- */
+.header-container {
+  width: 100%;
+  height: 64px;
+  background-color: white;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  /* ロゴが消えたので、中央寄せと右寄せのバランスを調整 */
+  justify-content: center; 
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  z-index: 50;
+  position: relative;
+  box-sizing: border-box;
+}
+
+/* ロゴエリア (.header-left) は削除！ */
+
+/* --- 中央：アジェンダ＆タイマー --- */
+.header-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* flex: 1;  ← ロゴが消えたので、flex: 1 は不要。中央にドンと置く */
+  margin-right: auto; /* これで左詰めっぽく配置されるが、justify-content: centerなら中央。 */
+  /* 今回は「中央」に置きたいので、absoluteで絶対配置にするテクニックを使うのが一番安全！ */
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* --- 右側：操作ボタン群 --- */
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto; /* これで右端に押しやる */
+}
+
+/* ... (アジェンダカードやタイマーのスタイルはそのまま維持！) ... */
+.agenda-card {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  background-color: #f9fafb;
+  padding: 6px 24px;
+  border-radius: 9999px;
+  border: 1px solid #e5e7eb;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+}
+.presenter-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+}
+.fg-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #6b7280;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.fg-badge {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+.presenter-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2937;
+}
+.divider {
+  width: 1px;
+  height: 32px;
+  background-color: #d1d5db;
+}
+.timer-area {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.timer-text {
+  font-family: monospace;
+  font-size: 30px;
+  font-weight: 700;
+  color: #374151;
+  font-variant-numeric: tabular-nums;
+}
+.timer-text.warning {
+  color: #ef4444;
+  animation: pulse 1s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+.timer-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-size: 14px;
+}
+.timer-btn.start {
+  background-color: #10b981;
+}
+.timer-btn.start:hover {
+  background-color: #059669;
+}
+.timer-btn.pause {
+  background-color: #fb923c;
+}
+.timer-btn.pause:hover {
+  background-color: #ea580c;
+}
+.control-btn {
+  padding: 8px;
+  color: #6b7280;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.control-btn:hover {
+  background-color: #f3f4f6;
+  color: #111827;
+}
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  background-color: #e5e7eb;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  object-fit: cover; /* 画像が歪まないように */
+}
+.waiting-text {
+  color: #9ca3af;
+  font-weight: 700;
+}

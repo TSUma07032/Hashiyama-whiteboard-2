@@ -14,6 +14,7 @@ import '../styles/layout.css';
 import { supabase } from './supabaseClient';
 import html2canvas from 'html2canvas'; // ◀ 画像化ライブラリ
 import jsPDF from 'jspdf';             // ◀ PDF生成ライブラリ
+import { type AgendaItem } from './index.d';
 
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 
@@ -26,6 +27,12 @@ const ResizeHandle = ({ className = "" }: { className?: string }) => (
     </PanelResizeHandle>
 );
 
+const INITIAL_AGENDA: AgendaItem[] = [
+    { id: '1', presenter: '橋山', fg: '高橋', timeMinutes: 10 },
+    { id: '2', presenter: '田中', fg: '佐藤', timeMinutes: 15 },
+    { id: '3', presenter: '鈴木', fg: '伊藤', timeMinutes: 8 },
+];
+
 /**
  * @filename Layout.tsx
  * @fileoverview Layoutコンポーネントは、アプリケーション全体のレイアウトを定義します。
@@ -33,6 +40,9 @@ const ResizeHandle = ({ className = "" }: { className?: string }) => (
  */
 const DEFAULT_NOTE_POSITION = { x: 50, y: 150 }; // デフォルトの座標を定義
 const DEFAULT_NOTE_SIZE = { width: 200, height: 100 };
+
+// 仮のID生成 (本番はSupabaseのAuth IDとかを使う)
+const MOCK_USER_ID = "me"; 
 
 export default function Layout() {
     const [notes, setNotes] = useState<NoteData[]>([]);
@@ -555,6 +565,7 @@ export default function Layout() {
         setActiveId(null);
     };
 
+    
 
     /**
      * 返信を追加する処理
@@ -694,6 +705,79 @@ export default function Layout() {
 
     const [jumpTargetId, setJumpTargetId] = useState<string | null>(null);
 
+    // ▼▼▼ アジェンダ＆タイマー管理のState ▼▼▼
+    const [currentAgendaIndex, setCurrentAgendaIndex] = useState(0);
+    const [timer, setTimer] = useState(INITIAL_AGENDA[0].timeMinutes * 60);
+    const [isTimerRunning, setIsTimerRunning] = useState(false);
+
+    const currentAgenda = INITIAL_AGENDA[currentAgendaIndex];
+
+    // ▼▼▼ アジェンダ管理のState（動的に変更可能に！） ▼▼▼
+    const [agendaList, setAgendaList] = useState<AgendaItem[]>(INITIAL_AGENDA);
+
+    // アジェンダ更新時の処理 (RightSidebarから呼ばれる)
+    const handleUpdateAgenda = (newList: AgendaItem[]) => {
+        setAgendaList(newList);
+        // もしリストが空になったり変更されたら、インデックスやタイマーの整合性を取る必要があるが、
+        // とりあえず簡易的に、リストが空ならインデックス0に戻すなどの処理を入れる
+        if (newList.length === 0) {
+            setCurrentAgendaIndex(0);
+            setTimer(0);
+            setIsTimerRunning(false);
+        }
+    };
+    
+    const [timerOwnerId, setTimerOwnerId] = useState<string | null>(null);
+
+// タイマー操作ハンドラ
+    const handleToggleTimer = () => {
+        if (isTimerRunning) {
+            // 停止: 自分がオーナーなら停止できる
+            if (timerOwnerId === MOCK_USER_ID) {
+                setIsTimerRunning(false);
+                setTimerOwnerId(null); // ロック解除
+            }
+        } else {
+            // 再生: 誰かが使ってなければ開始できる
+            if (timerOwnerId === null) {
+                setIsTimerRunning(true);
+                setTimerOwnerId(MOCK_USER_ID); // 自分をオーナーに設定
+            }
+        }
+    };
+
+    // タイマーカウントダウン
+    useEffect(() => {
+        let interval: any;
+        if (isTimerRunning && timer > 0) {
+            interval = setInterval(() => setTimer(p => p - 1), 1000);
+        } else if (timer === 0) {
+            setIsTimerRunning(false);
+            setTimerOwnerId(null); // 時間切れでロック解除
+        }
+        return () => clearInterval(interval);
+    }, [isTimerRunning, timer]);
+
+    // 次へ (タイマーリセット＆ロック解除)
+    const handleNextAgenda = () => {
+        if (currentAgendaIndex < agendaList.length - 1) {
+            const next = currentAgendaIndex + 1;
+            setCurrentAgendaIndex(next);
+            setTimer(agendaList[next].timeMinutes * 60);
+            setIsTimerRunning(false);
+            setTimerOwnerId(null); // ロック解除
+        }
+    };
+    const handlePrevAgenda = () => {
+        if (currentAgendaIndex > 0) {
+            const prev = currentAgendaIndex - 1;
+            setCurrentAgendaIndex(prev);
+            setTimer(agendaList[prev].timeMinutes * 60);
+            setIsTimerRunning(false);
+            setTimerOwnerId(null); // ロック解除
+        }
+    };
+
     return (
         <DndContext onDragEnd={handleDragEnd} onDragStart={handleDragStart} sensors={sensors}>
             
@@ -706,6 +790,15 @@ export default function Layout() {
                     data-no-pan="true" 
                     onPrint={handlePrint}
                     onDeleteAll={handleDeleteAll}
+                    currentAgenda={currentAgenda}
+                    timer={timer}
+                    isTimerRunning={isTimerRunning}
+                    onToggleTimer={handleToggleTimer}
+                    onNext={handleNextAgenda}
+                    onPrev={handlePrevAgenda}
+                    icon={uploadedIcon}
+                    timerOwnerId={timerOwnerId}
+                    currentUserId={MOCK_USER_ID}
                 />
 
                 {/* メインエリア (Flexコンテナ) */}
@@ -776,6 +869,8 @@ export default function Layout() {
                                     onAddReply={handleAddReply}
                                     onToggleReadStatus={handleToggleReadStatus}
                                     onJump={(id) => setJumpTargetId(id)}
+                                    agendaList={agendaList}
+                                    onUpdateAgenda={handleUpdateAgenda}
                                 />
                             </div>
                         </Panel>

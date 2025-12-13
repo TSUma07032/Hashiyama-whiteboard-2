@@ -53,3 +53,11 @@ export type NoteData = {
   is_locked?: boolean; // ロック状態
   z_index?: number;    // 重なり順
 };
+
+export type AgendaItem = {
+    id: string;
+    presenter: string; // 発表者名
+    fg: string;        // FG（司会）名
+    timeMinutes: number; // 持ち時間（分）
+    // iconUrl?: string;
+};

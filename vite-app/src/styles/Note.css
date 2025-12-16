@@ -1,174 +1,225 @@
-* {
-  box-sizing: border-box;
+/* src/styles/Note.css */
+
+/* コンテナ (React FlowのNodeサイズに合わせる) */
+.note-container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    /* transitionはReact Flowがやるので不要 */
 }
 
-/* --- ベースの付箋スタイル (Miro風) --- */
-.custom-note-wrapper {
-  width: 100%;
-  height: 100%;
-  border-radius: 4px; /* 小さめの角丸 */
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  transition: box-shadow 0.2s, border-color 0.2s;
-  /* overflow: visible !important; ← これがないとアイコンが見切れる！ */
-  overflow: visible !important; 
+/* メインの付箋デザイン */
+.note {
+    width: 100%;
+    height: 100%;
+    border-radius: 2px; /* ちょっと角ばってたほうが付箋っぽい？ */
+    box-shadow: 2px 4px 6px rgba(0, 0, 0, 0.3); /* 濃いめの影 */
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+    box-sizing: border-box;
+    transition: transform 0.1s;
 }
 
-/* 選択時の青い枠線 */
-.custom-note-wrapper.selected {
-  border: 3px solid #2563eb !important;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+/* 色定義 (あえて変数を使わず直書き！) */
+.note-red {
+    background-color: #ff9999;
+    border: 1px solid #ffcccc;
 }
 
-/* 通常時の薄い枠線 */
-.custom-note-wrapper:not(.selected) {
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+.note-blue {
+    background-color: #99ccff;
+    border: 1px solid #ccddff;
 }
 
-/* 編集モード（ドラッグ禁止） */
-.custom-note-wrapper.editing {
-  cursor: text;
-}
-/* 閲覧モード（ドラッグ可能） */
-.custom-note-wrapper.viewing {
-  cursor: grab;
+.note-white {
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
 }
 
-/* --- コンテンツエリア --- */
-.note-content {
-  flex: 1;
-  width: 100%;
-  height: 100%;
-  
-  /* ▼▼▼ 修正！ ▼▼▼ */
-  /* overflow: hidden;  <-- これだと消えちゃう！ */
-  overflow-y: hidden;     /* 縦スクロールを許可！ */
-  overflow-x: hidden;   /* 横はハミ出し禁止 */
-  /* ▲▲▲▲▲▲▲▲▲▲▲▲▲▲ */
-  
-  padding: 12px;
-  border-radius: 4px;
-
-  /* スクロールバーを細くして目立たなくする（おまけ） */
-  scrollbar-width: thin;
-  scrollbar-color: rgba(0,0,0,0.2) transparent;
+.note-read {
+    opacity: 0.6;
+    filter: grayscale(100%); /* 既読はガッツリグレーに */
 }
 
-/* テキストエリア (透明化) */
+/* テキストエリア (編集・閲覧共通) */
 .note-textarea {
-  width: 100%;
-  height: 100%;
-  background-color: transparent;
-  border: none;
-  outline: none;
-  resize: none;
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 1.5;
-  color: #1f2937;
+    flex: 1;
+    width: 100%;
+    height: 100%;
+    resize: none;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 16px;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    line-height: 1.5;
+    color: #333;
+    overflow: hidden; /* はみ出し防止 */
 }
 
-/* 閲覧用テキスト */
+/* 閲覧モードのテキスト装飾 */
 .note-text-display {
-  width: 100%;
-  height: 100%;
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 1.5;
-  color: #1f2937;
-  white-space: pre-wrap;
-  overflow-y: hidden; /* スクロール出したければ auto */
+    white-space: pre-wrap;
+    word-break: break-all;
+    cursor: grab; /* ドラッグできる感 */
 }
 
-/* --- 完了状態 (チェック済み) --- */
-.note-done {
-  opacity: 0.6;
-  filter: grayscale(80%);
+/* --- パーツ類 (絶対配置で「飛び出す」感じを再現) --- */
+
+/* 削除ボタン (右上に飛び出すアレ) */
+.delete-button {
+    position: absolute;
+    top: -12px;
+    right: -12px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background-color: #ff4444;
+    color: white;
+    border: 2px solid white;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    z-index: 20;
+    transition: transform 0.2s;
 }
-.note-done .note-text-display {
-  text-decoration: line-through;
+.delete-button:hover {
+    transform: scale(1.1);
+    background-color: #cc0000;
 }
 
-/* --- 装飾パーツ (絶対配置) --- */
-
-/* 1. 削除ボタン (右上) */
-.delete-btn {
-  position: absolute;
-  top: -10px;
-  right: -10px;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background-color: white;
-  border: 2px solid #ef4444;
-  color: #ef4444;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  z-index: 50;
-  font-size: 16px;
-  font-weight: bold;
-  padding: 0;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+/* ユーザーアイコン (左上に飛び出す) */
+.icon-container {
+    position: absolute;
+    top: -15px;
+    left: -15px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 2px solid white;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    background: white;
+    z-index: 10;
+}
+.user-icon {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
-/* 2. チェックボックス (左上) */
-.check-btn {
-  position: absolute;
-  top: -10px;
-  left: -10px;
-  width: 24px;
-  height: 24px;
-  
-  /* ▼▼▼ 【ここを修正！】丸(50%) から 四角(4px) へ！ ▼▼▼ */
-  border-radius: 4px; 
-  /* ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲ */
-  
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  z-index: 50;
-  font-size: 14px;
-  font-weight: bold;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  transition: background-color 0.2s, border-color 0.2s;
+/* 既読チェックボックス (右下) */
+.read-checkbox-container {
+    position: absolute;
+    bottom: 5px;
+    right: 5px;
+    cursor: pointer;
+    font-size: 18px;
+    user-select: none;
+    z-index: 5;
 }
 
-/* ついでに「未完了」の時も白背景の四角にして、統一感を出す！ */
-.check-btn.unchecked {
-  background-color: white;
-  border: 2px solid #d1d5db; /* 薄いグレーの枠線 */
-  color: transparent; /* チェックマークは隠す */
+/* 返信リスト (付箋の下にぶら下がる感じ) */
+.replies-container {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    margin-top: 5px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    pointer-events: none; /* ノート移動の邪魔にならないように */
 }
 
-/* 完了時は緑の四角！ */
-.check-btn.checked {
-  background-color: #10b981;
-  border: 2px solid #10b981;
-  color: white;
-}
-.check-btn.unchecked {
-  background-color: white;
-  border: 2px solid #ccc;
-  color: transparent;
+.reply-item {
+    background: rgba(255, 255, 255, 0.9);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    pointer-events: auto;
+    border-left: 3px solid #666;
 }
 
-/* 3. アイコン (左上・チェックボックスの隣) */
-.user-icon-float {
-  position: absolute;
-  top: -16px;
-  left: 20px; /* チェックボックスと被らないようにずらす */
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: 2px solid white;
-  z-index: 20;
-  object-fit: cover;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+/* --- 機能ボタン (編集・返信) --- */
+.action-buttons {
+    position: absolute;
+    /* ちょっと下に余裕を持たせる */
+    bottom: -45px; 
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px; /* 間隔を広げる */
+    opacity: 0; 
+    transition: opacity 0.2s, transform 0.2s;
+    pointer-events: none;
+    z-index: 30;
+}
+
+/* ホバー時の挙動 */
+.note-container:hover .action-buttons,
+.note-container.selected .action-buttons,
+/* ボタン自体にマウスが乗っている時も消えないように！ */
+.action-buttons:hover {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(-50%) translateY(-5px); /* ふわっと浮き上がる演出 */
+}
+
+.mini-btn {
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 20px; /* 丸みを強く */
+    padding: 6px 16px; /* ✨サイズアップ！ */
+    font-size: 12px;   /* ✨文字も大きく！ */
+    font-weight: bold;
+    color: #444;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.mini-btn:hover {
+    background: #f0f9ff; /* 薄い青 */
+    border-color: #3b82f6;
+    color: #2563eb;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+    transform: scale(1.05); /* ちょっと大きくなる */
+}
+.mini-btn:hover { background: #f0f0f0; }
+
+/* --- リサイズハンドラ (前のターンで追加したやつ) --- */
+.resize-handle {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background: white;
+    border: 1px solid #666;
+    border-radius: 50%;
+    z-index: 20;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+.note-container:hover .resize-handle { opacity: 1; }
+.resize-handle.br { bottom: -6px; right: -6px; cursor: nwse-resize; }
+.resize-handle.bl { bottom: -6px; left: -6px; cursor: nesw-resize; }
+
+/* PDF表示用 */
+.pdf-wrapper {
+    width: 100%;
+    height: 100%;
+    background: white;
+    overflow: hidden;
 }
 
 /* --- PDF 高画質化用の魔法 --- */
@@ -186,102 +237,184 @@
     object-fit: contain !important;
 }
 
-/* --- 返信エリア (下中央) --- */
-.reply-container {
-  position: absolute;
-  bottom: -34px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 30;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+/* --- 1. 宛先変更メニュー (リッチなポップオーバー) --- */
+.agenda-popover {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+    padding: 6px;
+    z-index: 100;
+    width: 180px;
+    margin-bottom: 8px;
+    border: 1px solid rgba(0,0,0,0.05);
+    animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-/* --- 右クリックメニュー (Context Menu) --- */
-.context-menu-container {
-  position: absolute;
-  z-index: 999999 !important; /* 誰にも負けない最強のZ-index！ */
-
-  cursor: default;
-  /* アニメーション用 */
-  animation: fadeIn 0.1s ease-out;
+/* 吹き出しの▼ */
+.agenda-popover::after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 6px 6px 0;
+    border-style: solid;
+    border-color: white transparent transparent transparent;
 }
 
-.context-menu-card {
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e5e7eb;
-  overflow: hidden;
+@keyframes popIn {
+    from { opacity: 0; transform: translateX(-50%) scale(0.9); }
+    to { opacity: 1; transform: translateX(-50%) scale(1); }
 }
 
-.context-menu-header {
-  background-color: #f9fafb;
-  padding: 8px 16px;
-  border-bottom: 1px solid #e5e7eb;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.agenda-menu-header {
+    font-size: 10px;
+    color: #9ca3af;
+    padding: 4px 8px;
+    font-weight: bold;
+    border-bottom: 1px solid #f3f4f6;
+    margin-bottom: 4px;
 }
 
-.context-menu-body {
-  padding: 4px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+.agenda-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    font-size: 12px;
+    color: #374151;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s;
 }
 
-.context-menu-btn {
-  width: 100%;
-  text-align: left;
-  padding: 8px 12px;
-  border-radius: 4px;
-  font-size: 14px;
-  transition: background-color 0.1s;
-  border: none;
-  background: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.agenda-menu-item:hover {
+    background-color: #eff6ff;
+    color: #2563eb;
 }
 
-.context-menu-btn.delete {
-  color: #dc2626; /* 赤 */
-  font-weight: bold;
-}
-.context-menu-btn.delete:hover {
-  background-color: #fef2f2; /* 薄い赤背景 */
-}
-
-.context-menu-btn.cancel {
-  color: #4b5563; /* グレー */
-}
-.context-menu-btn.cancel:hover {
-  background-color: #f3f4f6; /* 薄いグレー背景 */
+.agenda-avatar {
+    width: 20px;
+    height: 20px;
+    background-color: #e5e7eb;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
+.replies-wrapper {
+    position: absolute;
+    /* top: 100% だとボタンと被るので、ボタンの高さ分(約40px)さらに下げるか、
+       あるいは「右側」に逃がすのがおすすめ！ */
+    
+    /* パターンA: 右下にずらして表示 (ボタンを避ける) */
+    top: 100%;
+    right: -10px; /* 右端に合わせる（ちょっとはみ出させる） */
+    left: auto;   /* 左揃えを解除 */
+    
+    width: 220px; /* 幅を固定して見やすく */
+    margin-top: 45px; /* ✨重要: ホバーボタン(約40px)と被らないように下げる */
+    
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end; /* 右寄せにする */
+    pointer-events: none;
+    z-index: 50; /* ボタンより上に来てもいいように */
 }
 
-/* 3. アイコン (左上・チェックボックスの隣) */
-.user-icon-float {
-  position: absolute;
-  /* 位置を少し調整 */
-  top: -10px;
-  left: 18px; /* チェックボックスの隣 */
-  
-  /* ▼▼▼ サイズ縮小！ 32px -> 22px ▼▼▼ */
-  width: 22px;
-  height: 22px;
-  /* ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲ */
-  
-  border-radius: 50%;
-  border: 2px solid white;
-  z-index: 20;
-  object-fit: cover;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+.reply-toggle-btn {
+    pointer-events: auto;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 4px 12px;
+    font-size: 11px;
+    color: #6b7280;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.2s;
 }
+.reply-toggle-btn:hover {
+    background: #f9fafb;
+    color: #374151;
+}
+
+.replies-list-body {
+    pointer-events: auto;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 8px;
+    width: 90%; /* ノートより少し小さく */
+    margin-top: 4px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.reply-item-modern {
+    font-size: 11px;
+    color: #4b5563;
+    padding: 6px;
+    background: #f3f4f6;
+    border-radius: 6px;
+    line-height: 1.4;
+    word-break: break-all;
+}
+
+/* --- 3. インライン返信入力 --- */
+.reply-input-container {
+    pointer-events: auto;
+    margin-top: 4px;
+    width: 90%;
+    background: white;
+    padding: 4px;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    border: 1px solid #e5e7eb;
+    display: flex;
+    gap: 4px;
+    animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.reply-input-box {
+    flex: 1;
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 12px;
+    outline: none;
+}
+.reply-input-box:focus { border-color: #3b82f6; }
+
+.reply-send-btn-small {
+    background: #2563eb;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 12px;
+}
+.reply-send-btn-small:hover { background: #1d4ed8; }

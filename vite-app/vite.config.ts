@@ -1,8 +1,13 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+// vite.config.ts
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import path from 'path'; // ◀ これが必要！(npm i -D @types/node が必要かも)
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-  // base: '/Hashiyama-whiteboard-2/', // フロントエンドの置き場所をgithub pages以外としたためコメントアウト
-})
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'), // ◀ これを追加！
+    },
+  },
+});

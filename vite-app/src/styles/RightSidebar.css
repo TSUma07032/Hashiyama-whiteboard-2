@@ -1,4 +1,7 @@
 /* src/styles/RightSidebar.css */
+:root {
+  color-scheme: light;
+}
 
 /* --- 全体レイアウト --- */
 .sidebar-container {
@@ -191,7 +194,7 @@
 }
 .pdf-item:hover { background-color: #eff6ff; }
 .pdf-icon { font-size: 18px; }
-.pdf-title { font-size: 12px; font-weight: bold; }
+.pdf-title { font-size: 12px;  }
 
 /* --- 付箋（Note）リスト --- */
 .note-list {

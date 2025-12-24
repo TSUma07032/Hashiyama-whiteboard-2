@@ -1,7 +1,12 @@
 // src/components/PDFViewer.tsx
-import React, { useState, memo } from 'react'; // memoをインポート
+import React, { useState, useMemo} from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
-import '../styles/Note.css'; // パス修正済みと仮定
+import { useStorage } from '@/hooks/useStorage'; // フックをインポート
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+import 'react-pdf/dist/Page/TextLayer.css';
+
+// ▼ 作ったCSSをインポート！
+import '@/styles/PDFViewer.css';
 
 // Worker設定 (これはファイルの外でもOK)
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
@@ -14,47 +19,74 @@ type PDFViewerProps = {
     onAddAllPages: (url: string, numPages: number) => void;
 };
 
-// コンポーネント定義
-const PDFViewer = ({ onAddPdfNote, onAddAllPages }: PDFViewerProps) => {
-    const [fileUrl, setFileUrl] = useState<string | null>(null);
+export default function PDFViewer({ onAddPdfNote, onAddAllPages }: PDFViewerProps) {
+    const [pdfUrl, setPdfUrl] = useState<string | null>(null);
     const [numPages, setNumPages] = useState<number | null>(null);
 
-    const onFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (file) {
-            const url = URL.createObjectURL(file);
-            setFileUrl(url);
-        }
-    };
+    // フックを使う！
+    const { uploadFile} = useStorage();
 
     const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
         setNumPages(numPages);
     };
 
-    return (
-        <div className="pdf-viewer-container" style={{ padding: '20px', background: 'white', borderRadius: '8px', maxHeight: '80vh', overflowY: 'auto' }}>
-            <h2 className="text-lg font-bold mb-4">PDFを選択してね📄</h2>
-            <input type="file" accept="application/pdf" onChange={onFileChange} className="mb-4" />
+    // アップロード処理がこんなにシンプルに！
+    const handleUpload = async (file: File) => {
+        // PDFは 'pdfs' フォルダに入れたい場合
+        const publicUrl = await uploadFile(file, 'uploads', 'pdfs');
+        
+        if (publicUrl) {
+            setPdfUrl(publicUrl);
+        }
+    };
 
-            {fileUrl && (
+    const onFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file && file.type === 'application/pdf') {
+            handleUpload(file);
+        } else if (file) {
+            alert('PDFファイルを選択してください。');
+        }
+    };
+
+    const pdfOptions = useMemo(() => ({
+        cMapUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/`,
+        cMapPacked: true,
+    }), []); // [] は「最初の一回だけ作るよ」って意味
+
+    return (
+        <div className="pdf-viewer-container">
+            <h2 className="pdf-viewer-title">PDFを選択してね📄</h2>
+            <input 
+                type="file" 
+                accept="application/pdf" 
+                onChange={onFileChange} 
+                className="pdf-file-input" 
+            />
+
+            {pdfUrl && (
                 <>
-                    <div className="flex gap-2 mb-4">
+                    <div className="pdf-controls">
                         <button 
-                            onClick={() => numPages && onAddAllPages(fileUrl, numPages)}
-                            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                            onClick={() => numPages && onAddAllPages(pdfUrl!, numPages)}
+                            className="pdf-action-button"
                         >
                             全ページを一括展開 ({numPages}ページ)
                         </button>
                     </div>
 
-                    <Document file={fileUrl} onLoadSuccess={onDocumentLoadSuccess}>
+                    <Document 
+                        file={pdfUrl} 
+                        onLoadSuccess={onDocumentLoadSuccess} 
+                        options={pdfOptions}>
                         {Array.from(new Array(numPages), (_el, index) => (
-                            <div key={`page_${index + 1}`} className="mb-4 border border-gray-200 relative group">
+                            <div key={`page_${index + 1}`} className="pdf-page-wrapper">
                                 <Page pageNumber={index + 1} width={200} />
+                                
                                 {/* ホバー時に追加ボタンを出す */}
                                 <button
-                                    onClick={() => onAddPdfNote(fileUrl, index + 1)}
-                                    className="absolute inset-0 bg-black bg-opacity-10 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white font-bold transition-opacity"
+                                    onClick={() => onAddPdfNote(pdfUrl!, index + 1)}
+                                    className="pdf-overlay-button"
                                 >
                                     このページを付箋にする
                                 </button>
@@ -65,8 +97,4 @@ const PDFViewer = ({ onAddPdfNote, onAddAllPages }: PDFViewerProps) => {
             )}
         </div>
     );
-};
-
-// ✨ ここが重要！ React.memo で包んでエクスポート！
-// これで親コンポーネントが再レンダリングされても、propsが変わらなければ再描画されない！
-export default memo(PDFViewer);
+}

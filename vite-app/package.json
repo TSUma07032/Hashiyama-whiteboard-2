@@ -13,6 +13,7 @@
     "@dnd-kit/modifiers": "^9.0.0",
     "@supabase/supabase-js": "^2.76.1",
     "clsx": "^2.1.1",
+    "html-to-image": "^1.11.13",
     "html2canvas": "^1.4.1",
     "jspdf": "^3.0.4",
     "react": "^19.1.0",

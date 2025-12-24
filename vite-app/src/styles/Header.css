@@ -1,3 +1,7 @@
+:root {
+  color-scheme: light;
+}
+
 /* --- ヘッダー全体の枠 --- */
 .header-container {
   width: 100%;

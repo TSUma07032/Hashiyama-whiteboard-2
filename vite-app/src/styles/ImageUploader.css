@@ -1,0 +1,62 @@
+/* src/styles/ImageUploader.css */
+
+.image-uploader-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center; /* 中身も中央寄せ */
+  width: 100%;
+  
+  /* ▼ 付箋ほどじゃないけど、こいつも少しスペース取っていいよって設定 ▼ */
+  flex-grow: 0; 
+  /* flex-grow: 1; にするとここもグイーンって伸びるようになる。お好みで！ */
+  
+  margin-bottom: 0; /* 親のgapで制御するのでマージンは減らす */
+}
+
+.hidden-input {
+  display: none;
+}
+
+.upload-button {
+  width: 100%;
+  max-width: 200px; /* 横幅の上限はそのまま（好みで消してもOK） */
+  
+  /* ▼ 縦幅アップ！クリックしやすく！ ▼ */
+  padding: 1rem 1rem; /* py-4 相当 */
+  height: auto; /* 中身に合わせて広がる */
+  min-height: 3.5rem; /* 最低限の高さを保証 */
+  
+  background-color: white;
+  border: 1px solid #d1d5db; 
+  border-radius: 0.5rem; /* 角丸アップ */
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); 
+  
+  font-size: 1rem; /* 文字も少し大きく */
+  font-weight: 600; 
+  color: #374151; 
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.1s;
+  outline: none;
+}
+
+.upload-button:hover:not(:disabled) {
+  background-color: #f9fafb; 
+  transform: translateY(-1px); /* ちょっと浮くエフェクト */
+}
+
+.upload-button:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.file-name-text {
+  font-size: 0.8rem; 
+  color: #6b7280; 
+  margin-top: 0.5rem; 
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis; 
+  max-width: 200px;
+  text-align: center;
+}

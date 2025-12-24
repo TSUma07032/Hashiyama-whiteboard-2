@@ -1,4 +1,7 @@
 /* src/styles/Note.css */
+:root {
+  color-scheme: light;
+}
 
 /* コンテナ (React FlowのNodeサイズに合わせる) */
 .note-container {

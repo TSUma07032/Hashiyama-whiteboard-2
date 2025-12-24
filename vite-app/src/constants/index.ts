@@ -21,8 +21,8 @@ export const LONG_PRESS_DURATION = 300; // 長押し判定のミリ秒
 export const DOUBLE_CLICK_GAP = 300;    // (もし使うなら)
 
 // --- PDF・資料貼り付け関連 ---
-export const PDF_NOTE_WIDTH = 1600;
-export const PDF_NOTE_HEIGHT = 2250;
+export const PDF_NOTE_WIDTH = 800;
+export const PDF_NOTE_HEIGHT = 1131;
 export const PDF_GAP_X = 100; // 横並びの隙間
 export const PDF_FILE_MARGIN = PDF_NOTE_HEIGHT * 2; // ファイル間の縦の隙間
 
@@ -35,3 +35,8 @@ export const SIDEBAR_WIDTH_MAX = 500;
 export const MOCK_USER_ID = "me";
 // 削除用の特殊ID (UUIDのゼロ埋め)
 export const ALL_DELETE_ID = '00000000-0000-0000-0000-000000000000';
+
+// グリッドの列数
+export  const PDF_GRID_COLS = 10;
+// 行ごとの縦の隙間
+export const PDF_GAP_Y = PDF_GAP_X;

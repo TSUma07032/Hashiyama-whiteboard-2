@@ -1,5 +1,5 @@
 // src/component/Layout.tsx
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef } from 'react';
 import { Panel, PanelGroup } from 'react-resizable-panels';
 import { DndContext, type DragEndEvent, type DragStartEvent, MouseSensor, useSensor, useSensors } from '@dnd-kit/core';
 

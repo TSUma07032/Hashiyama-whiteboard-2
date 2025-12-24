@@ -1,3 +1,8 @@
+
+:root {
+  color-scheme: light;
+}
+
 /* --- レイアウトの基本構造 (Grid -> Flex に変更！) --- */
 .app-layout {
   display: flex;          /* Grid廃止！Flexboxにする！ */

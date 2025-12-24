@@ -1,4 +1,4 @@
-import React, { memo, useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
+import React, { memo, useState, useEffect, useCallback, useRef, useLayoutEffect, useMemo } from 'react';
 import { type NodeProps, NodeResizeControl } from 'reactflow';
 import { Document, Page, pdfjs } from 'react-pdf';
 import LinkifyText from './Linkify';
@@ -113,6 +113,11 @@ const CustomNoteNode = ({ data, selected }: NodeProps) => {
     }
     if (data.isRead) noteClass += ' note-read';
 
+    const pdfOptions = useMemo(() => ({
+            cMapUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/`,
+            cMapPacked: true,
+    }), []); // [] は「最初の一回だけ作るよ」って意味
+
     // --- Context Menu (右クリック) ---
     // React Flowの onNodeContextMenu を使う場合はここは標準のイベントバブリングでOK
     // ただし、このノード内での右クリックをキャッチしたい場合は以下を使う
@@ -141,10 +146,22 @@ const CustomNoteNode = ({ data, selected }: NodeProps) => {
 
                 {/* コンテンツ */}
                 {isPdf && data.file_url ? (
-                    <div className="pdf-wrapper">
-                        <Document file={data.file_url} loading="Loading...">
-                            <Page pageNumber={data.page_index || 1} width={(data.width || 200) * (window.devicePixelRatio || 1) * 1.5} renderAnnotationLayer={true} renderTextLayer={false} />
-                        </Document>
+
+                    <div className="pdf-high-res-canvas"> 
+                            <Document 
+                                file={data.file_url} 
+                                loading="Loading..."
+                                // ▼▼▼ ここに追加！これで日本語もバッチリ！ ▼▼▼
+                                options={pdfOptions}
+                            >
+                                <Page 
+                                    pageNumber={data.page_index || 1} 
+                                    // widthの設定は好みの倍率でOK（今は2倍になってるね！）
+                                    width={parseInt(String(data.width || 200)) * 2} 
+                                    renderAnnotationLayer={false} 
+                                    renderTextLayer={false} 
+                                />
+                            </Document>
                     </div>
                 ) : (
                     <>
@@ -159,8 +176,9 @@ const CustomNoteNode = ({ data, selected }: NodeProps) => {
                                 autoFocus
                             />
                         ) : (
-                            <div className="note-textarea note-text-display" onDoubleClick={() => setIsEditing(true)}>
-                                {localText ? <LinkifyText text={localText} /> : <span style={{ opacity: 0.5 }}>ダブルクリックで編集...</span>}
+                            <div className="note-textarea note-text-display">
+                                {/* 文言も「ダブルクリックで編集...」から変更 */}
+                                {localText ? <LinkifyText text={localText} /> : <span style={{ opacity: 0.5 }}>（テキストなし）</span>}
                             </div>
                         )}
                     </>
@@ -231,7 +249,6 @@ const CustomNoteNode = ({ data, selected }: NodeProps) => {
                             🔀 宛先
                         </button>
 
-                        {/* ✨ カッコいいメニュー ✨ */}
                         {showAgendaMenu && data.agendaList && (
                             <div className="agenda-popover">
                                 <div className="agenda-menu-header">宛先を選択</div>

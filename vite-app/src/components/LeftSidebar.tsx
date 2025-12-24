@@ -1,5 +1,7 @@
 import React from 'react';
 import ImageUploader from './ImageUploader';
+// ▼ 作ったCSSをインポート！パスは環境に合わせて調整してね（@/styles/... か ../styles/...）
+import '@/styles/LeftSidebar.css'; 
 
 type LeftSidebarProps = {
     className?: string;
@@ -16,30 +18,29 @@ export default function LeftSidebar({ className, onIconUpload, onTogglePdfViewer
     };
 
     return (
-        // ▼▼▼ w-full と items-center で中央揃え＆幅追従！ ▼▼▼
         <aside 
-            className={`w-full bg-gray-100 p-4 shadow-lg rounded-r-lg flex flex-col items-center ${className || ''}`} 
+            // ▼ Tailwindの長いクラスを消して、独自のクラス .left-sidebar を使用
+            className={`left-sidebar ${className || ''}`} 
             data-no-pan={dataNoPan ? 'true' : undefined}
         >
-            <div className="w-full h-12 bg-gray-300 rounded-md mb-4 flex items-center justify-center text-gray-600 font-medium">ツールタブ</div>
+            <div className="tool-tab-header">ツールタブ</div>
             
-            {/* ▼▼▼ ここ！ImageUploaderの中身も確認が必要だが、まずはコンテナを整理 ▼▼▼ */}
-            <div className="w-full flex flex-col items-center gap-4">
+            <div className="items-container">
                 <ImageUploader onUpload={onIconUpload} />
 
-                {/* 付箋テンプレート（ドラッグ元） */}
+                {/* 付箋テンプレート（赤） */}
+                {/* style={{...}} を削除して className="note-template comment" に！ */}
                 <div
-                    className="w-full h-64 rounded-lg shadow-md cursor-grab active:cursor-grabbing flex items-center justify-center font-bold text-gray-700 transition-transform hover:scale-105 hover:shadow-lg"
-                    style={{ backgroundColor: '#ff9999', border: '1px solid rgba(0,0,0,0.1)' }}
+                    className="note-template comment"
                     draggable
                     onDragStart={(event) => onDragStart(event, 'note', 'r')}
                 >
                     コメント
                 </div>
 
+                {/* 付箋テンプレート（青） */}
                 <div
-                    className="w-full h-64 rounded-lg shadow-md cursor-grab active:cursor-grabbing flex items-center justify-center font-bold text-gray-700 transition-transform hover:scale-105 hover:shadow-lg"
-                    style={{ backgroundColor: '#99ccff', border: '1px solid rgba(0,0,0,0.1)' }}
+                    className="note-template question"
                     draggable
                     onDragStart={(event) => onDragStart(event, 'note', 'b')}
                 >
@@ -47,10 +48,10 @@ export default function LeftSidebar({ className, onIconUpload, onTogglePdfViewer
                 </div>
             </div>
 
-            <div className="mt-8 w-full max-w-[200px]">
+            <div className="pdf-button-container">
                 <button 
                     onClick={onTogglePdfViewer}
-                    className="w-full bg-gray-700 text-white font-bold py-3 px-4 rounded hover:bg-gray-600 shadow transition-colors"
+                    className="pdf-button"
                 >
                     PDFを開く
                 </button>

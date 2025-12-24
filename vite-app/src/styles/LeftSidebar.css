@@ -1,0 +1,129 @@
+/* src/styles/LeftSidebar.css */
+
+/* サイドバー全体 */
+.left-sidebar {
+  width: 100%;
+  height: 100%;
+  background-color: #f3f4f6; 
+  padding: 1rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); 
+  border-top-right-radius: 0.5rem; 
+  border-bottom-right-radius: 0.5rem;
+  
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* justify-content: space-between; ← 削除！中身で調整するから親は詰めとく */
+}
+
+/* 「ツールタブ」の見出し */
+.tool-tab-header {
+  width: 100%;
+  height: 3rem;
+  min-height: 3rem;
+  background-color: #d1d5db;
+  border-radius: 0.375rem;
+  /* margin-bottom は削除して gap で制御する手もあるけど、ここは一旦維持でもOK。今回はflex gapを使うので削除推奨 */
+  flex-shrink: 0; /* 潰さない */
+  
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #4b5563;
+  font-weight: 500;
+}
+
+/* アイテムを縦に並べるコンテナ */
+.items-container {
+  width: 100%;
+  
+  /* ▼ 画面いっぱい使う！ ▼ */
+  flex-grow: 1; 
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  
+  /* ▼ 隙間均等配置(space-evenly)をやめて、要素自体を伸ばす！ ▼ */
+  justify-content: flex-start; 
+  gap: 1.5rem; /* 要素間の隙間はこれで固定！広がりすぎない！ */
+  
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+  overflow-y: auto;
+}
+
+/* 付箋テンプレート（共通） */
+.note-template {
+  width: 100%;
+  
+  /* ▼ ここが魔法！余った縦幅を全部使って伸びる！ ▼ */
+  flex: 1; 
+  
+  min-height: 120px; /* 小さくなりすぎ防止 */
+  /* max-height: 30vh;  ← 画面デカすぎるときに伸びすぎ防止したいならこれ入れる。今回は「大きくして」だから無しでOK！ */
+  
+  border-radius: 0.5rem; 
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); 
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700; 
+  font-size: 1.2rem; /* 文字も大きくしちゃお！ */
+  color: #374151;   
+  transition: transform 0.2s, box-shadow 0.2s;
+  border: 1px solid rgba(0,0,0,0.1); 
+}
+
+.note-template:active {
+  cursor: grabbing;
+}
+
+.note-template:hover {
+  transform: scale(1.02); /* デカいから拡大は控えめに */
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); 
+}
+
+/* 色ごとのクラス */
+.note-template.comment {
+  background-color: #ff9999;
+}
+
+.note-template.question {
+  background-color: #99ccff;
+}
+
+/* PDFボタンエリア */
+.pdf-button-container {
+  width: 100%;
+  max-width: 200px; /* ここだけは横幅制限しとく？全幅でもいいなら 100% にして！ */
+  margin-bottom: 1rem; 
+  flex-shrink: 0;
+}
+
+/* PDFボタン */
+.pdf-button {
+  width: 100%;
+  
+  /* ▼ ボタンの高さもガッツリ確保！ ▼ */
+  height: 4rem; 
+  
+  background-color: #374151; 
+  color: white;
+  font-weight: 700;
+  font-size: 1.1rem; /* 文字サイズアップ */
+  
+  /* 上下中央揃え */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  border-radius: 0.5rem; /* 角丸も少し大きく */
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  transition: background-color 0.2s;
+  border: none;
+}
+
+.pdf-button:hover {
+  background-color: #4b5563; 
+}

@@ -3,7 +3,7 @@
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: light dark;
+  color-scheme: light;
   color: rgba(255, 255, 255, 0.87);
   background-color: #242424;
 
@@ -64,5 +64,59 @@ button:focus-visible {
   }
   button {
     background-color: #f9f9f9;
+  }
+}
+
+/* src/index.css */
+
+/* ▼▼▼ 印刷用スタイル (最強の保守性・ファイナル版) ▼▼▼ */
+@media print {
+  /* 1. 邪魔なUIを全部隠す！ */
+  header, 
+  aside, 
+  .react-flow__controls, 
+  .react-flow__minimap, 
+  .react-flow__background,
+  .tool-tab-header, 
+  .pdf-button-container,
+  button {
+    display: none !important;
+  }
+
+  /* 2. ページ設定 */
+  @page {
+    size: auto;   /* 用紙サイズは自由 */
+    margin: 0mm;  /* 余白なし（JSで制御するから） */
+  }
+
+  /* 3. コンテナの制限解除！画面サイズに縛られない！ */
+  body, #root, .app-container {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: auto !important;   /* 👈 ここ重要！100%じゃなくてauto！ */
+    height: auto !important;  /* 👈 ここ重要！ */
+    overflow: visible !important;
+    background-color: white !important;
+  }
+
+  /* 4. React Flowキャンバスの開放！ */
+  .react-flow {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    
+    width: auto !important;   /* 👈 ここが勝負の分かれ目！ */
+    height: auto !important;  
+    
+    overflow: visible !important; /* はみ出し御免！ */
+    z-index: 9999 !important;
+    background: white !important;
+  }
+  
+  /* 中身のviewportも広げる */
+  .react-flow__viewport {
+    width: auto !important;
+    height: auto !important;
+    transform: none !important; /* JSで制御するけど念のため */
   }
 }

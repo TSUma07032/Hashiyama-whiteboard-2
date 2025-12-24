@@ -1,17 +1,18 @@
-// src/component/ImageUploader.tsx
-import { useState, useRef, type ChangeEvent } from 'react';
-import { useStorage } from '../hooks/useStorage'; // ✨フックをインポート
+// src/components/ImageUploader.tsx
+import { useRef, useState, type ChangeEvent } from 'react';
+import { useStorage } from '@/hooks/useStorage'; // ✨フックをインポート
+// ▼ 作ったCSSをインポート！
+import '@/styles/ImageUploader.css';
 
 type ImageUploaderProps = {
-    onUpload: (imageUrl: string) => void;
+    onUpload: (url: string) => void;
 };
 
 export default function ImageUploader({ onUpload }: ImageUploaderProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [fileName, setFileName] = useState<string | null>(null);
-    
-    // ✨フックを使う！
-    const { uploadImage, isUploading } = useStorage();
+
+    const { uploadFile, isUploading, uploadError } = useStorage();
 
     const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -19,37 +20,37 @@ export default function ImageUploader({ onUpload }: ImageUploaderProps) {
 
         setFileName(file.name);
 
-        try {
-            // ✨ここがスッキリ！
-            const url = await uploadImage(file);
-            console.log('取得したURL:', url);
-            onUpload(url); 
-        } catch (error) {
-            alert(`アップロードに失敗した: ${(error as Error).message}`);
+        // ロジックは全部フックにお任せ！
+        const publicUrl = await uploadFile(file, 'uploads', 'icons');
+        
+        if (publicUrl) {
+            console.log('画像URLゲット:', publicUrl);
+            onUpload(publicUrl);
+        } else {
             setFileName('アップロード失敗...');
         }
     };
 
     return (
-        <div className="flex flex-col items-center w-full mb-4">
+        <div className="image-uploader-container">
             <input
                 type="file"
                 ref={fileInputRef}
                 onChange={handleFileChange}
-                className="hidden"
+                className="hidden-input"
                 accept="image/png, image/jpeg"
-                style={{ display: 'none' }}
             />
             
             <button
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full max-w-[200px] py-2 px-4 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none"
+                className="upload-button"
                 disabled={isUploading}
             >
                 {isUploading ? 'アップロード中...' : (fileName ? 'アイコン変更' : 'アイコンをアップロード')}
             </button>
             
-            {fileName && <p className="text-xs text-gray-500 mt-1 truncate max-w-[200px]">{fileName}</p>}
+            {fileName && <p className="file-name-text">{fileName}</p>}
+            {uploadError && <p className="error-text">エラー: {uploadError}</p>}
         </div>
     );
 }

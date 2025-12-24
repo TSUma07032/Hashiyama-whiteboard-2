@@ -1,0 +1,78 @@
+/* src/styles/PDFViewer.css */
+
+:root {
+  color-scheme: light;
+}
+
+.pdf-viewer-container {
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+  max-height: 80vh;
+  overflow-y: auto;
+  color: #374151; /* 文字色も明示 */
+}
+
+.pdf-viewer-title {
+  font-size: 1.125rem; /* text-lg */
+  font-weight: 700;    /* font-bold */
+  margin-bottom: 1rem; /* mb-4 */
+  color: #1f2937;      /* 濃いめのグレー */
+}
+
+.pdf-file-input {
+  margin-bottom: 1rem;
+  width: 100%;
+}
+
+.pdf-controls {
+  display: flex;
+  gap: 0.5rem; /* gap-2 */
+  margin-bottom: 1rem; /* mb-4 */
+}
+
+.pdf-action-button {
+  background-color: #3b82f6; /* bg-blue-500 */
+  color: white;
+  padding: 0.5rem 1rem; /* px-4 py-2 */
+  border-radius: 0.25rem; /* rounded */
+  border: none;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.pdf-action-button:hover {
+  background-color: #2563eb; /* hover:bg-blue-600 */
+}
+
+/* ページごとのラッパー */
+.pdf-page-wrapper {
+  margin-bottom: 1rem; /* mb-4 */
+  border: 1px solid #e5e7eb; /* border-gray-200 */
+  position: relative; /* オーバーレイのために必要 */
+  display: inline-block; /* ページサイズに合わせる */
+}
+
+/* ホバー時のオーバーレイボタン */
+.pdf-overlay-button {
+  position: absolute;
+  inset: 0; /* 上下左右0 */
+  background-color: rgba(0, 0, 0, 0.1); /* 薄い黒背景 */
+  opacity: 0; /* 最初は隠す */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 700;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.5); /* 文字を見やすく */
+  transition: opacity 0.2s;
+  border: none;
+  cursor: pointer;
+}
+
+/* 親要素(.pdf-page-wrapper)ホバー時に表示 */
+.pdf-page-wrapper:hover .pdf-overlay-button {
+  opacity: 1;
+  background-color: rgba(0, 0, 0, 0.4); /* ホバー時は少し濃く */
+}

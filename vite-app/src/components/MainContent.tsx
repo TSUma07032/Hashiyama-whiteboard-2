@@ -1,5 +1,6 @@
-// src/component/MainContent.tsx
-import React, { useCallback, useEffect, useRef, useMemo, useState } from 'react';
+// src/components/MainContent.tsx
+// ✨ useImperativeHandle をちゃんとインポートに追加！
+import React, { useCallback, useEffect, useRef, useMemo, useState, useImperativeHandle, forwardRef } from 'react';
 import ReactFlow, { 
   ReactFlowProvider, 
   useReactFlow,      
@@ -10,27 +11,26 @@ import ReactFlow, {
   type NodeDragHandler,
   MiniMap,
   type Node,
+  getNodesBounds,
+  useStoreApi,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
 // --- Components ---
 import CustomNoteNode from './CustomNoteNode';
-import ContextMenu from './ContextMenu'; // ✨独立したメニューをインポート！
+import ContextMenu from './ContextMenu';
+import type { NoteData, AgendaItem } from '@/types';
 
-// --- Types ---
-import type { NoteData, AgendaItem } from '@/types'; // ✨修正したパスを使用
+// 親から呼び出せる関数の型定義
+export type MainContentHandle = {
+    print: () => void;
+    getBoundingClientRect: () => DOMRect | null;
+};
 
 type MainContentProps = {
     notes: NoteData[];
     onNotesChange: (id: string, x: number, y: number) => void;
-    onAddNote: (
-        text: string, 
-        color: string, 
-        x: number, 
-        y: number, 
-        icon?: string | null, 
-        agendaId?: string
-    ) => void;
+    onAddNote: (text: string, color: string, x: number, y: number, icon?: string | null, agendaId?: string) => void;
     onEditNote: (id: string, text: string) => void;
     onAddReply: (noteId: string, replyText: string) => void;
     onDeleteNote: (id: string) => void;
@@ -43,42 +43,31 @@ type MainContentProps = {
 };
 
 // 内部コンポーネント (Flow)
-function Flow({ 
-    notes, 
-    onNotesChange, 
-    onAddNote, 
-    onEditNote, 
-    onAddReply, 
-    onDeleteNote, 
-    onDuplicateNote,
-    onUpdateNote,
-    onToggleReadStatus,
-    agendaList = [],
-    jumpTargetId,
-    onJumpComplete
-}: MainContentProps) {
-    // React Flow の状態管理
+const Flow = forwardRef<MainContentHandle, MainContentProps>((props, ref) => {
+    // ✨ notes stateの定義（エイリアス使用）
     const [nodes, setNodes, onNodesChangeReactFlow] = useNodesState([]);
     const [_edges, _setEdges, onEdgesChange] = useEdgesState([]);
-    const { screenToFlowPosition, setCenter } = useReactFlow(); 
+
+    // ✨ ここに必要な関数（setViewport, getNodes）を追加！
+    const { screenToFlowPosition, setCenter, setViewport, getNodes } = useReactFlow(); 
+    const store = useStoreApi();
 
     // コンテキストメニューの状態
     const [menu, setMenu] = useState<{ id: string, top?: number, left?: number } | null>(null);
-    const ref = useRef<HTMLDivElement>(null);
+    const flowRef = useRef<HTMLDivElement>(null); // refの名前を明確に flowRef に変更
 
-    // Nodeタイプの定義 (再生成を防ぐため useMemo)
     const nodeTypes = useMemo(() => ({ note: CustomNoteNode }), []);
 
-    // 移動可能範囲（結界）
+
     const extent: [[number, number], [number, number]] = [
-        [-2000, -2000], 
-        [20000, Infinity]
+        [-1000, 0], 
+        [10000, Infinity]
     ];
 
-    // --- 1. データ同期: props.notes を React Flow の nodes に変換 ---
+    // --- 1. データ同期 ---
     useEffect(() => {
-        if (!notes) return;
-        const flowNodes: Node[] = notes.map((note) => ({
+        if (!props.notes) return;
+        const flowNodes: Node[] = props.notes.map((note) => ({
             id: note.id,
             type: 'note', 
             position: { x: note.x, y: note.y }, 
@@ -86,37 +75,30 @@ function Flow({
             zIndex: note.z_index || 0,
             data: { 
                 ...note,
-                onChangeText: (newText: string) => onEditNote(note.id, newText),
-                onAddReply: (replyText: string) => onAddReply(note.id, replyText),
-                onDelete: onDeleteNote, 
-                onDuplicate: onDuplicateNote,
-                onUpdateNote: onUpdateNote,
-                onToggleReadStatus: () => onToggleReadStatus(note.id),
-                
-                // ★ここ超重要！これがないとボタンが出ない！
-                agendaList: agendaList, 
-                // ★宛先IDを更新する関数
-                onUpdateAgendaId: (newId: string) => onUpdateNote(note.id, { agenda_id: newId }),
+                onChangeText: (newText: string) => props.onEditNote(note.id, newText),
+                onAddReply: (replyText: string) => props.onAddReply(note.id, replyText),
+                onDelete: props.onDeleteNote, 
+                onDuplicate: props.onDuplicateNote,
+                onUpdateNote: props.onUpdateNote,
+                onToggleReadStatus: () => props.onToggleReadStatus(note.id),
+                agendaList: props.agendaList, 
+                onUpdateAgendaId: (newId: string) => props.onUpdateNote(note.id, { agenda_id: newId }),
             }, 
             style: { width: note.width || 200, height: note.height || 100 },
         }));
         setNodes(flowNodes);
-    }, [notes, setNodes, onEditNote, onAddReply, onDeleteNote, onDuplicateNote, onUpdateNote, onToggleReadStatus, agendaList]);
+    }, [props.notes, setNodes, props.onEditNote, props.onAddReply, props.onDeleteNote, props.onDuplicateNote, props.onUpdateNote, props.onToggleReadStatus, props.agendaList]);
 
     // --- 2. イベントハンドラ ---
-
-    // ノートのドラッグ終了
     const onNodeDragStop: NodeDragHandler = useCallback((_e, node) => {
-        onNotesChange(node.id, node.position.x, node.position.y);
-    }, [onNotesChange]);
+        props.onNotesChange(node.id, node.position.x, node.position.y);
+    }, [props.onNotesChange]);
 
-    // ドロップ許可
     const onDragOver = useCallback((event: React.DragEvent) => {
         event.preventDefault(); 
         event.dataTransfer.dropEffect = 'move';
     }, []);
 
-    // 新規ドロップ
     const onDrop = useCallback(
         (event: React.DragEvent) => {
             event.preventDefault();
@@ -126,39 +108,24 @@ function Flow({
             const { color } = JSON.parse(reactFlowData);
             const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
 
-            onAddNote('', color, position.x, position.y);
+            props.onAddNote('', color, position.x, position.y);
         },
-        [screenToFlowPosition, onAddNote]
+        [screenToFlowPosition, props.onAddNote]
     );
 
-    // ノートクリック/ドラッグ開始（前面へ）
     const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
         setMenu(null);
-        onUpdateNote(node.id, { z_index: Date.now() });
-    }, [onUpdateNote]);
+        props.onUpdateNote(node.id, { z_index: Date.now() });
+    }, [props.onUpdateNote]);
 
     const onNodeDragStart: NodeDragHandler = useCallback((_event, node) => {
         setMenu(null);
-        onUpdateNote(node.id, { z_index: Date.now() });
-    }, [onUpdateNote]);
+        props.onUpdateNote(node.id, { z_index: Date.now() });
+    }, [props.onUpdateNote]);
 
-    // --- 3. ジャンプ機能 ---
-    useEffect(() => {
-        if (!jumpTargetId) return;
-        const targetNode = notes.find(n => n.id === jumpTargetId);
-        if (targetNode) {
-            const targetX = targetNode.x + (targetNode.width || 200) / 2;
-            const targetY = targetNode.y + (targetNode.height || 100) / 2;
-            setCenter(targetX, targetY, { zoom: 1.0, duration: 800 });
-        }
-        if (onJumpComplete) onJumpComplete();
-    }, [jumpTargetId, notes, setCenter, onJumpComplete]);
-
-    // --- 4. コンテキストメニュー制御 ---
     const onNodeContextMenu = useCallback(
         (event: React.MouseEvent, node: Node) => {
             event.preventDefault();
-            
             setMenu({
                 id: node.id,
                 top: event.clientY,
@@ -170,8 +137,64 @@ function Flow({
 
     const onPaneClick = useCallback(() => setMenu(null), []);
 
+    // --- 3. ジャンプ機能 ---
+    useEffect(() => {
+        if (!props.jumpTargetId) return;
+        const targetNode = props.notes.find(n => n.id === props.jumpTargetId);
+        if (targetNode) {
+            const targetX = targetNode.x + (targetNode.width || 200) / 2;
+            const targetY = targetNode.y + (targetNode.height || 100) / 2;
+            setCenter(targetX, targetY, { zoom: 1.0, duration: 800 });
+        }
+        if (props.onJumpComplete) props.onJumpComplete();
+    }, [props.jumpTargetId, props.notes, setCenter, props.onJumpComplete]);
+
+    // ▼▼▼ 印刷機能を親に公開！ ▼▼▼
+    useImperativeHandle(ref, () => ({
+        print: () => {
+
+            // 1. ノードがあるかチェック
+            const currentNodes = getNodes();
+            if (currentNodes.length === 0) return;
+            
+            // 2. 全体の範囲を取得
+            const bounds = getNodesBounds(currentNodes);
+            
+            // 3. 現在の視点（位置・ズーム）を保存
+            // 修正済み: transformは配列 [x, y, zoom] です！
+            const [prevX, prevY, prevZoom] = store.getState().transform;
+
+            // 4. 印刷用にビューポートを強制変更！
+            const padding = 50; // ちょっと余白
+            // ズーム100%で、全体が左上に来るように移動
+            setViewport({ x: -bounds.x + padding, y: -bounds.y + padding, zoom: 1 });
+
+            // 5. キャンバスのDOM要素を強制的に広げる！
+            // これでCSSの 'width: auto' と組み合わさって最強になる
+            const wrapper = document.querySelector('.react-flow') as HTMLElement;
+            const originalWidth = wrapper.style.width;
+            const originalHeight = wrapper.style.height;
+
+            wrapper.style.width = `${bounds.width + (padding * 2)}px`;
+            wrapper.style.height = `${bounds.height + (padding * 2)}px`;
+
+            // 6. 描画反映を待ってから印刷
+            setTimeout(() => {
+                window.print();
+
+                // 7. お片付け（元に戻す）
+                setViewport({ x: prevX, y: prevY, zoom: prevZoom });
+                wrapper.style.width = originalWidth;
+                wrapper.style.height = originalHeight;
+            }, 500); // 0.5秒待機
+        },
+        getBoundingClientRect: () => {
+            return flowRef.current?.getBoundingClientRect() ?? null;
+        }
+    }));
+
     return (
-        <div ref={ref} style={{ width: '100%', height: '100%', position: 'relative' }}>
+        <div ref={flowRef} style={{ width: '100%', height: '100%', position: 'relative' }}>
             <ReactFlow
                 nodes={nodes}
                 onNodesChange={onNodesChangeReactFlow}
@@ -188,41 +211,43 @@ function Flow({
                 translateExtent={extent}
                 minZoom={0.1}
                 maxZoom={6}
-                panOnScroll={false}      // false = ホイールでズーム (trueだとパンになる)
-                zoomOnScroll={true}      // true = ホイールで拡大縮小
-                zoomOnPinch={true}       // true = タッチパッドのピンチで拡大縮小
-                panOnDrag={true}         // true = ドラッグで移動
-                zoomOnDoubleClick={false} // ダブルクリックでのズームは誤爆するのでOFF推奨
+                panOnScroll={false}
+                zoomOnScroll={true}
+                zoomOnPinch={true}
+                panOnDrag={true}
+                zoomOnDoubleClick={false}
             >
                 <Background color="#aaa" gap={16} />
                 <Controls />
                 <MiniMap style={{ height: 120 }} zoomable pannable />
                 
-                {/* ✨ 切り出したContextMenuを表示 */}
                 {menu && (
                     <ContextMenu 
                         top={menu.top || 0} 
                         left={menu.left || 0}
                         onClose={() => setMenu(null)}
                         onDelete={() => { 
-                            onDeleteNote(menu.id); 
+                            props.onDeleteNote(menu.id); 
                             setMenu(null); 
                         }}
-                        // agendaList とかはもう渡さない！削除！
                     />
                 )}
             </ReactFlow>
         </div>
     );
-}
+});
 
 // 外側からProviderで包む
-export default function MainContent(props: MainContentProps) {
+const MainContent = forwardRef<MainContentHandle, MainContentProps>((props, ref) => {
     return (
         <div style={{ width: '100%', height: '100%' }}>
             <ReactFlowProvider>
-                <Flow {...props} />
+                {/* 2. ここ！ここでバトン(ref)を Flow に渡す！ */}
+                <Flow {...props} ref={ref} />
             </ReactFlowProvider>
         </div>
     );
-}
+});
+
+// 3. 最後に export default
+export default MainContent;

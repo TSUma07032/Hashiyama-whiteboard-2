@@ -4,7 +4,7 @@ import { getNodesBounds, type Node } from 'reactflow';
 
 // A4サイズの定義 (mm単位)
 const PDF_WIDTH_MM = 210;
-const PDF_HEIGHT_MM = 297;
+//const PDF_HEIGHT_MM = 297;
 
 // 🔥 安全装置1：一度に画像化する最大高さ（px）
 const MAX_SLICE_HEIGHT_PX = 3000; 

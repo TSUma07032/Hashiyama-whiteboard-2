@@ -421,3 +421,73 @@
     font-size: 12px;
 }
 .reply-send-btn-small:hover { background: #1d4ed8; }
+
+/* Note.css に追加してね */
+
+/* 編集ボタンは、ホバーした時だけ濃くする */
+.reply-item-modern:hover .edit-reply-btn {
+    opacity: 1 !important;
+}
+
+/* 編集中の保存・キャンセルボタン */
+.mini-btn-ok, .mini-btn-cancel {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 12px;
+    padding: 0 4px;
+    transition: transform 0.1s;
+}
+
+/* Note.css */
+
+/* 編集中も、普通のテキストっぽく見せるCSSマジック */
+.reply-input-box-seamless {
+    width: 100%;
+    border: none;
+    background: rgba(255, 255, 255, 0.5); /* 編集してる感だけ少し出す */
+    outline: none; /* 青い枠線消す */
+    font-size: inherit; /* 周りの文字サイズに合わせる */
+    font-family: inherit;
+    padding: 0;
+    margin: 0;
+    color: inherit;
+    border-radius: 4px;
+}
+
+/* ホバーしたら「編集できるよ感」を出す */
+.reply-item-modern:hover {
+    background-color: rgba(0, 0, 0, 0.05); /* うっすらグレー */
+}
+
+/* 返信アイテムのラッパー */
+.reply-content-wrapper {
+    position: relative; /* ボタンを絶対配置するために必要 */
+    padding-right: 24px; /* ボタンのスペースを確保 */
+    min-height: 24px;
+    display: flex;
+    align-items: center;
+}
+
+/* 浮き出る編集ボタン */
+.floating-edit-btn {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%); /* ど真ん中に配置 */
+    
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    opacity: 0; /* 普段は透明人間👻 */
+    transition: opacity 0.2s ease-in-out; /* フワッと出す */
+}
+
+/* ホバーした時だけ出現！ */
+.reply-item-modern:hover .floating-edit-btn {
+    opacity: 1; /* バァーン！登場！ */
+}
+
+.mini-btn-ok:hover { transform: scale(1.2); }
+.mini-btn-cancel:hover { transform: scale(1.2); }

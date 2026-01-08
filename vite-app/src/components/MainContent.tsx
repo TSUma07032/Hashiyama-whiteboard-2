@@ -40,6 +40,7 @@ type MainContentProps = {
     agendaList?: AgendaItem[];
     jumpTargetId?: string | null;
     onJumpComplete?: () => void;
+    onUpdateReply: (noteId: string, replyId: string, newText: string) => void;
 };
 
 // 内部コンポーネント (Flow)
@@ -83,6 +84,7 @@ const Flow = forwardRef<MainContentHandle, MainContentProps>((props, ref) => {
                 onToggleReadStatus: () => props.onToggleReadStatus(note.id),
                 agendaList: props.agendaList, 
                 onUpdateAgendaId: (newId: string) => props.onUpdateNote(note.id, { agenda_id: newId }),
+                onUpdateReply: (replyId: string, newText: string) => props.onUpdateReply(note.id, replyId, newText),
             }, 
             style: { width: note.width || 200, height: note.height || 100 },
         }));

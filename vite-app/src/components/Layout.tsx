@@ -42,7 +42,7 @@ const ResizeHandle = ({ className = "" }: { className?: string }) => (
 
 export default function Layout() {
     // フック x 2
-    const { notes, addNote, updateNote, deleteNote, addReply, deleteAllNotes,  } = useNotes();
+    const { notes, addNote, updateNote, deleteNote, addReply, deleteAllNotes, updateReply, } = useNotes();
     const { 
         agendaList, currentAgenda, timeLeft, timerEndAt, timerOwnerId,
         isPresenting, toggleTimer, nextAgenda, prevAgenda 
@@ -387,7 +387,7 @@ export default function Layout() {
                                     jumpTargetId={jumpTargetId}
                                     onJumpComplete={() => setJumpTargetId(null)}
                                     agendaList={agendaList}
-                                    
+                                    onUpdateReply={(noteId, replyId, text) => updateReply(noteId, replyId, text)}
                                 />
                             </div>
                         </Panel>

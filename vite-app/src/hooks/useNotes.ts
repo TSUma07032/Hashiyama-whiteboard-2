@@ -131,6 +131,44 @@ export const useNotes = () => {
         }
     }, []);
 
+    // --- 7. 返信更新 (Update Reply) ---
+    const updateReply = async (noteId: string, replyId: string, newText: string) => {
+        try {
+            // 1. まず、そのノートの現在の返信リストを取得（ローカルのnotesから探せば早い！）
+            const targetNote = notes.find(n => n.id === noteId);
+            if (!targetNote) throw new Error("ノートが見つからない！");
+        
+            // 2. 配列の中身を書き換える（JavaScriptの処理）
+            // data.replies が存在しない場合やnullの場合も考慮して安全に！
+            const currentReplies = targetNote.replies || [];
+            
+            const newReplies = currentReplies.map((r: any) => 
+                r.id === replyId ? { ...r, text: newText } : r
+            );
+        
+            // 3. Supabaseの 'notes' テーブルを更新！
+            // 「repliesカラム」を新しい配列で上書きするの！
+            const { error } = await supabase
+                .from('notes') // 👈 ここ重要！ notesテーブル！
+                .update({ replies: newReplies })
+                .eq('id', noteId); // 👈 ノートIDで指定！
+        
+            if (error) throw error;
+        
+            // 4. ローカルStateも更新 (画面のピカつき防止✨)
+            setNotes((prevNotes) => 
+                prevNotes.map((note) => {
+                    if (note.id !== noteId) return note;
+                    return { ...note, replies: newReplies };
+                })
+            );
+        
+            console.log("✨ 返信、今度こそ更新できたよ〜！JSONB最強！");
+        } catch (e) {
+            console.error("😭 返信更新ミスった...", e);
+        }
+    };
+
     return {
         notes,
         loading,
@@ -139,5 +177,6 @@ export const useNotes = () => {
         deleteNote,
         addReply,
         deleteAllNotes,
+        updateReply,
     };
 };

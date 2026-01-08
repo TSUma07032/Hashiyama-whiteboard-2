@@ -77,6 +77,23 @@ const CustomNoteNode = ({ data, selected }: NodeProps) => {
         }
     }, [showReplyInput]);
 
+
+    useEffect(() => {
+        if (isEditing && textareaRef.current) {
+            // 即時実行だとReact Flowのクリックイベントと競合することがあるため
+            // 50msだけ待ってからフォーカスを当てるのが一番安定します
+            const timer = setTimeout(() => {
+                textareaRef.current?.focus();
+                
+                // (お好みで) カーソルを末尾に移動させたい場合は以下も追加
+                // const len = textareaRef.current.value.length;
+                // textareaRef.current.setSelectionRange(len, len);
+            }, 50);
+
+            return () => clearTimeout(timer);
+        }
+    }, [isEditing]);
+
     // --- Handlers ---
     const handleResizeEnd = useCallback((_event: any, params: any) => {
         const { width, height } = params;
@@ -251,7 +268,7 @@ const CustomNoteNode = ({ data, selected }: NodeProps) => {
                                 value={localText}
                                 onChange={handleChange}
                                 onBlur={handleBlur}
-                                autoFocus
+                                //autoFocus
                             />
                         ) : (
                             <div className="note-textarea note-text-display">
@@ -341,7 +358,14 @@ const CustomNoteNode = ({ data, selected }: NodeProps) => {
             {!isPdf && !isEditing && (
                 <div className="action-buttons nodrag" style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                     
-                    <button className="mini-btn" onClick={() => setIsEditing(true)}>
+                    <button 
+                        className="mini-btn" 
+                        onClick={(e) => {
+                            e.stopPropagation(); // 👈 重要：親要素（キャンバス）への通知を遮断！
+                            e.preventDefault();  // 余計な挙動を防ぐ
+                            setIsEditing(true);
+                        }}
+                    >
                         ✏️ 編集
                     </button>
                     

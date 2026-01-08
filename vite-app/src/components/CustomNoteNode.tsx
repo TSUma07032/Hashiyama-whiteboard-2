@@ -172,6 +172,7 @@ const CustomNoteNode = ({ data, selected }: NodeProps) => {
         setEditReplyText("");
     };
 
+    /*
     // 2. 編集を保存する (DB更新！)
     const handleSaveReply = () => {
         if (editingReplyId && editReplyText.trim()) {
@@ -190,7 +191,8 @@ const CustomNoteNode = ({ data, selected }: NodeProps) => {
         setEditReplyText("");
     };
 
-    // 4. Enterキーで保存、Escでキャンセル (UX爆上げポイント✨)
+    // 4. Enterキーで保存、Escでキャンセル
+    
     const handleEditKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter') {
             e.preventDefault(); // 改行を防ぐ
@@ -198,7 +200,7 @@ const CustomNoteNode = ({ data, selected }: NodeProps) => {
         } else if (e.key === 'Escape') {
             handleCancelEdit();
         }
-    };
+    };*/
 
     return (
         <div className={`note-container ${selected ? 'selected' : ''}`} ref={wrapperRef}>

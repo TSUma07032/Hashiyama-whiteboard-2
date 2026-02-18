@@ -213,11 +213,12 @@ const Flow = forwardRef<MainContentHandle, MainContentProps>((props, ref) => {
                 translateExtent={extent}
                 minZoom={0.1}
                 maxZoom={6}
-                panOnScroll={false}
-                zoomOnScroll={true}
+                panOnScroll={true}   
+                zoomOnScroll={false} 
                 zoomOnPinch={true}
                 panOnDrag={true}
                 zoomOnDoubleClick={false}
+                selectionOnDrag={true}  
             >
                 <Background color="#aaa" gap={16} />
                 <Controls />

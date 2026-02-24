@@ -1,7 +1,5 @@
 // src/hooks/useExportBoard.ts
 import { useCallback } from 'react';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
 import type { NoteData } from '@/types';
 
 type UseExportBoardProps = {
@@ -13,7 +11,7 @@ export const useExportBoard = ({ contentRef, notes }: UseExportBoardProps) => {
     const exportToPdf = useCallback(async () => {
         // ノードが1個もないときは何もしない
         if (!contentRef.current || notes.length === 0) {
-            alert("付箋がひとつもないぞ、ざぁこ♡"); // そのまま残しましたw
+            alert("付箋がひとつもないぞ"); // そのまま残しました
             return;
         }
 
@@ -22,6 +20,16 @@ export const useExportBoard = ({ contentRef, notes }: UseExportBoardProps) => {
 
         try {
             console.log("📸 全体保存プロセス開始！");
+
+            // ボタンが押されたときに、html2canvas と jsPDF を動的インポートして読み込む
+            // これで、PDF保存機能を使うときだけ重いライブラリを読み込むようになるので、軽量化に貢献します！
+            const [html2canvasModule, jsPDFModule] = await Promise.all([
+                import('html2canvas'),
+                import('jspdf')
+            ]);
+            // defaultエクスポートを取り出す
+            const html2canvas = html2canvasModule.default;
+            const jsPDF = jsPDFModule.default;
 
             // 1. 全ノートの座標から、全体の「バウンディングボックス」を計算
             let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;

@@ -1,157 +1,159 @@
-import React, { memo, useState, useEffect, useCallback, useRef, useLayoutEffect, useMemo } from 'react';
-import { type NodeProps, NodeResizeControl } from 'reactflow';
+// vite-app/src/components/CustomNoteNode.tsx
+import React, { memo, useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { type NodeProps, NodeResizeControl, useUpdateNodeInternals } from 'reactflow';
 import { Document, Page, pdfjs } from 'react-pdf';
+import TextareaAutosize from 'react-textarea-autosize'; // ✨ NEW: 自動リサイズライブラリ
 import LinkifyText from './Linkify';
 import '../styles/Note.css';
 
-// PDFワーカー (省略せず書いておくね)
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
   import.meta.url,
 ).toString();
 
-const CustomNoteNode = ({ data, selected }: NodeProps) => {
-    // --- State ---
-    const [isEditing, setIsEditing] = useState(false);
-    const [localText, setLocalText] = useState(data.text);
-    const [minHeight, setMinHeight] = useState(60); 
+// ✨ NEW: UIの状態を排他制御するためのUnion型
+type ActiveAction = 'none' | 'editing_note' | 'adding_reply' | 'selecting_agenda';
 
-    // ▼ 新しいStateたち
-    const [showAgendaMenu, setShowAgendaMenu] = useState(false); // 宛先メニュー
-    const [isRepliesOpen, setIsRepliesOpen] = useState(false);   // アコーディオン開閉
-    const [showReplyInput, setShowReplyInput] = useState(false); // 返信入力欄
-    const [replyText, setReplyText] = useState("");              // 返信内容
+const CustomNoteNode = ({ id, data, selected }: NodeProps) => {
+    // ✨ NEW: React Flowにノードのサイズ変更を通知するフック
+    const updateNodeInternals = useUpdateNodeInternals();
+
+    // --- State ---
+    const [activeAction, setActiveAction] = useState<ActiveAction>('none');
+    const [localText, setLocalText] = useState(data.text);
+    
+    // アコーディオンの開閉は独立状態として維持
+    const [isRepliesOpen, setIsRepliesOpen] = useState(false);
+    const [replyText, setReplyText] = useState("");
+    const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
+    const [editReplyText, setEditReplyText] = useState("");
 
     // --- Refs ---
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
     const wrapperRef = useRef<HTMLDivElement>(null);
-    const dummyRef = useRef<HTMLDivElement>(null); 
-    const inputRef = useRef<HTMLInputElement>(null); // 返信入力用
-
-    const [editingReplyId, setEditingReplyId] = useState<string | null>(null); // 編集中のID
-    const [editReplyText, setEditReplyText] = useState(""); // 編集中のテキスト
+    const inputRef = useRef<HTMLInputElement>(null);
 
     // --- Effects ---
-    useEffect(() => { setLocalText(data.text); }, [data.text]);
-
-    const observerRef = useRef<ResizeObserver | null>(null);
-
-    useLayoutEffect(() => {
-        if (data.type === 'pdf' || !wrapperRef.current || !dummyRef.current) return;
-
-        // 監視員（Observer）は最初の一回だけ雇う
-        if (!observerRef.current) {
-            observerRef.current = new ResizeObserver(() => {
-                // ループ防止：requestAnimationFrameでタイミングをずらす
-                window.requestAnimationFrame(() => {
-                    if (!dummyRef.current) return;
-                    const contentHeight = dummyRef.current.offsetHeight + 40;
-                    // ステート更新は本当に値が変わった時だけ
-                    setMinHeight(prev => {
-                        if (Math.abs(prev - contentHeight) < 2) return prev; // 誤差許容
-                        return Math.max(60, contentHeight);
-                    });
-                });
-            });
-            observerRef.current.observe(wrapperRef.current);
+    // 親のテキストが変更された場合、編集中でなければ反映
+    useEffect(() => { 
+        if (activeAction !== 'editing_note') {
+            setLocalText(data.text);
         }
+    }, [data.text, activeAction]);
 
-        // テキストが変わった時は、手動で一回だけ高さ計算してあげる（Observerには頼らない）
-        const contentHeight = dummyRef.current.offsetHeight + 40;
-        setMinHeight(Math.max(60, contentHeight));
-
-        // クリーンアップ（コンポーネントが消える時だけ）
-        return () => {
-            observerRef.current?.disconnect();
-            observerRef.current = null;
-        };
-    }, []); // 依存配列を空にする
-    // localText が変わった瞬間に高さ変えたいなら、
-    // 別の useEffect で height 計算だけ走らせるのが安全?
-
-
-    // 返信入力が開いたらフォーカス
+    // ✨ 選択解除時のクリーンアップ（すべてのメニューを閉じ、編集を保存）
     useEffect(() => {
-        if (showReplyInput && inputRef.current) {
+        if (!selected) {
+            if (activeAction === 'editing_note') {
+                finishEditing();
+            }
+            setActiveAction('none');
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selected]);
+
+    // 返信入力モードになったら自動フォーカス
+    useEffect(() => {
+        if (activeAction === 'adding_reply' && inputRef.current) {
             inputRef.current.focus();
         }
-    }, [showReplyInput]);
-
-
-    useEffect(() => {
-        if (isEditing && textareaRef.current) {
-            // 即時実行だとReact Flowのクリックイベントと競合することがあるため
-            // 50msだけ待ってからフォーカスを当てるのが一番安定します
-            const timer = setTimeout(() => {
-                textareaRef.current?.focus();
-                
-                // (お好みで) カーソルを末尾に移動させたい場合は以下も追加
-                // const len = textareaRef.current.value.length;
-                // textareaRef.current.setSelectionRange(len, len);
-            }, 50);
-
-            return () => clearTimeout(timer);
-        }
-    }, [isEditing]);
+    }, [activeAction]);
 
     // --- Handlers ---
+    // ✨ 編集完了処理（見た目の更新はライブラリに任せ、ここではデータ保存のみ行う）
+    const finishEditing = useCallback(() => {
+        if (activeAction !== 'editing_note') return;
+        
+        if (localText !== data.text && data.onChangeText) {
+            data.onChangeText(localText);
+        }
+
+        // 保存時に一度だけ、最終的な高さを親（DBなど）に伝える
+        if (wrapperRef.current && data.onUpdateNote) {
+            data.onUpdateNote(id, { height: wrapperRef.current.offsetHeight });
+        }
+        
+        setActiveAction('none');
+    }, [activeAction, localText, data, id]);
+
+    // React Flowの手動リサイズイベント
     const handleResizeEnd = useCallback((_event: any, params: any) => {
         const { width, height } = params;
-        data.onUpdateNote(data.id, { width: Math.round(width), height: Math.round(height) });
-    }, [data]);
+        if (data.onUpdateNote) {
+            data.onUpdateNote(id, { width: Math.round(width), height: Math.round(height) });
+        }
+    }, [data, id]);
 
-    const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => setLocalText(e.target.value);
+    // ✨ テキスト入力のたびにReact Flowに「サイズが変わったかも！」と通知
+    const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        setLocalText(e.target.value);
+        updateNodeInternals(id); // これがエッジ（線）のズレを防ぐ魔法のフックです
+    };
     
-    const handleBlur = useCallback(() => {
-        setIsEditing(false);
-        if (localText !== data.text) data.onChangeText(localText);
-    }, [localText, data]);
+    // Enterキーの挙動（UX維持のため既存の仕様を踏襲）
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            finishEditing();
+            (document.activeElement as HTMLElement)?.blur();
+        }
+    };
 
-    // ▼ 宛先変更ハンドラ
-    const handleChangeAgenda = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        setShowAgendaMenu(!showAgendaMenu);
+    // --- アクションのトグル制御（排他制御により超絶シンプル化） ---
+    const toggleAction = (action: ActiveAction, e?: React.MouseEvent) => {
+        e?.stopPropagation();
+        e?.preventDefault();
+        setActiveAction(prev => prev === action ? 'none' : action);
+    };
+
+    const handleToggleReplyInput = (e: React.MouseEvent) => {
+        toggleAction('adding_reply', e);
+        setIsRepliesOpen(true); // 返信入力時はアコーディオンを開く
     };
 
     const selectAgenda = (agendaId: string) => {
-        if (data.onUpdateAgendaId) {
-            data.onUpdateAgendaId(agendaId); // DB更新！
-        }
-        setShowAgendaMenu(false);
+        if (data.onUpdateAgendaId) data.onUpdateAgendaId(agendaId);
+        setActiveAction('none');
     };
 
-    // ▼ 返信モード切替
-    const handleToggleReplyInput = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        setShowReplyInput(!showReplyInput);
-        setShowAgendaMenu(false); // 他のメニューは閉じる
-        setIsRepliesOpen(true);   // 入力するなら履歴も開く
-    };
-
-    // ▼ 返信送信
+    // --- 返信関連のハンドラー ---
     const sendReply = () => {
         if (replyText.trim()) {
-            data.onAddReply(replyText);
+            data.onAddReply?.(replyText);
             setReplyText("");
-            setShowReplyInput(false);
-            setIsRepliesOpen(true); // 送信後も開いておく
+            setActiveAction('none');
+            setIsRepliesOpen(true);
         }
     };
 
     const handleReplyKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter') {
             e.preventDefault();
-            // Enter押したらフォーカス外す → handleReplyBlur が呼ばれて保存される
             (e.currentTarget as HTMLInputElement).blur();
         } else if (e.key === 'Escape') {
-            // 保存せずに閉じる
             e.preventDefault();
             setEditingReplyId(null);
             setEditReplyText("");
         }
     };
 
-    // --- Classes ---
+    const handleStartEditReply = (e: React.MouseEvent, reply: any) => {
+        e.stopPropagation();
+        setEditingReplyId(reply.id);
+        setEditReplyText(reply.text);
+    };
+
+    const handleReplyBlur = () => {
+        if (editingReplyId && editReplyText.trim()) {
+            const originalReply = data.replies?.find((r: any) => r.id === editingReplyId);
+            if (originalReply && originalReply.text !== editReplyText) {
+                data.onUpdateReply?.(editingReplyId, editReplyText);
+            }
+        }
+        setEditingReplyId(null);
+        setEditReplyText("");
+    };
+
+    // --- Rendering Helpers ---
     const isPdf = data.type === 'pdf';
     let noteClass = 'note';
     if (!isPdf) {
@@ -164,114 +166,66 @@ const CustomNoteNode = ({ data, selected }: NodeProps) => {
     const pdfOptions = useMemo(() => ({
             cMapUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/`,
             cMapPacked: true,
-    }), []); // [] は「最初の一回だけ作るよ」って意味
-
-    // 1. 編集モードに入る
-    const handleStartEditReply = (e: React.MouseEvent, reply: any) => {
-        e.stopPropagation(); // 親のクリックイベントを止める（大事！）
-        setEditingReplyId(reply.id);
-        setEditReplyText(reply.text);
-    };
-
-    // フォーカスアウトで保存 (DB更新！)
-    const handleReplyBlur = () => {
-        if (editingReplyId && editReplyText.trim()) {
-            // 元のテキストと変わってるときだけDB更新リクエスト飛ばす (エコだね✨)
-            const originalReply = data.replies?.find((r: any) => r.id === editingReplyId);
-            if (originalReply && originalReply.text !== editReplyText) {
-                if (data.onUpdateReply) {
-                    data.onUpdateReply(editingReplyId, editReplyText);
-                }
-            }
-        }
-        // どっちにしろ編集モードは終了
-        setEditingReplyId(null);
-        setEditReplyText("");
-    };
-
-    /*
-    // 2. 編集を保存する (DB更新！)
-    const handleSaveReply = () => {
-        if (editingReplyId && editReplyText.trim()) {
-            // 親から渡された関数を実行！
-            if (data.onUpdateReply) {
-                data.onUpdateReply(editingReplyId, editReplyText);
-            }
-            setEditingReplyId(null);
-            setEditReplyText("");
-        }
-    };
-
-    // 3. キャンセル
-    const handleCancelEdit = () => {
-        setEditingReplyId(null);
-        setEditReplyText("");
-    };
-
-    // 4. Enterキーで保存、Escでキャンセル
-    
-    const handleEditKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter') {
-            e.preventDefault(); // 改行を防ぐ
-            handleSaveReply();
-        } else if (e.key === 'Escape') {
-            handleCancelEdit();
-        }
-    };*/
+    }), []); 
 
     return (
         <div className={`note-container ${selected ? 'selected' : ''}`} ref={wrapperRef}>
             
-            {/* リサイズハンドラ */}
+            {/* --- リサイズハンドル --- */}
             {!isPdf && (
                 <>
-                    <NodeResizeControl position="bottom-right" className="resize-handle br" onResizeEnd={handleResizeEnd} minWidth={150} minHeight={minHeight} />
-                    <NodeResizeControl position="bottom-left" className="resize-handle bl" onResizeEnd={handleResizeEnd} minWidth={150} minHeight={minHeight} />
+                    <NodeResizeControl position="bottom-right" className="resize-handle br" onResizeEnd={handleResizeEnd} minWidth={150} minHeight={60} />
+                    <NodeResizeControl position="bottom-left" className="resize-handle bl" onResizeEnd={handleResizeEnd} minWidth={150} minHeight={60} />
                 </>
             )}
 
-            <div className={noteClass}>
-
-                {/* アイコン */}
+            {/* --- メインコンテンツ --- */}
+            <div 
+                className={noteClass}
+                style={{
+                    height: activeAction === 'editing_note' ? 'auto' : '100%',
+                    minHeight: '100%',
+                    zIndex: activeAction === 'editing_note' ? 10 : 1
+                }}
+            >
                 {data.icon && (
                     <div className="icon-container">
                         <img src={data.icon} alt="icon" className="user-icon" />
                     </div>
                 )}
 
-                {/* コンテンツ */}
                 {isPdf && data.file_url ? (
-
                     <div className="pdf-high-res-canvas"> 
-                            <Document 
-                                file={data.file_url} 
-                                loading="Loading..."
-                                // ▼▼▼ ここに追加！これで日本語もバッチリ！ ▼▼▼
-                                options={pdfOptions}
-                            >
-                                <Page 
-                                    pageNumber={data.page_index || 1} 
-                                    // widthの設定は好みの倍率でOK（今は2倍になってるね！）
-                                    width={parseInt(String(data.width || 200)) * 2} 
-                                    renderAnnotationLayer={false} 
-                                    renderTextLayer={false} 
-                                />
-                            </Document>
+                        <Document 
+                            file={data.file_url} 
+                            loading="Loading..."
+                            options={pdfOptions}
+                        >
+                            <Page 
+                                pageNumber={data.page_index || 1} 
+                                width={parseInt(String(data.width || 200)) * 2} 
+                                renderAnnotationLayer={false} 
+                                renderTextLayer={false} 
+                            />
+                        </Document>
                     </div>
                 ) : (
                     <>
-                        <div ref={dummyRef} style={{ position: 'absolute', visibility: 'hidden', whiteSpace: 'pre-wrap', width: '100%', padding: '10px', wordBreak: 'break-all' }}>{localText}</div>
-                        {isEditing ? (
-                            <textarea 
-                                ref={textareaRef}
+                        {/* ✨ NEW: dummyRefとResizeObserverを完全に削除し、TextareaAutosizeを採用 */}
+                        {activeAction === 'editing_note' ? (
+                            <TextareaAutosize 
                                 className="note-textarea nodrag"
                                 value={localText}
                                 onChange={handleChange}
-                                onBlur={handleBlur}
-                                //autoFocus
+                                onKeyDown={handleKeyDown}
+                                onMouseDown={(e) => e.stopPropagation()}
+                                autoFocus
                             />
                         ) : (
-                            <div className="note-textarea note-text-display">
+                            <div 
+                                className="note-textarea note-text-display"
+                                onDoubleClick={(e) => toggleAction('editing_note', e)} // ダブルクリック編集を復活！
+                            >
                                 {localText ? <LinkifyText text={localText} /> : <span style={{ opacity: 0.5 }}>（テキストなし）</span>}
                             </div>
                         )}
@@ -279,12 +233,10 @@ const CustomNoteNode = ({ data, selected }: NodeProps) => {
                 )}
             </div>
 
-            {/* --- アコーディオン返信エリア --- */}
+            {/* --- 返信エリア --- */}
             {!isPdf && (
                 <div className="replies-wrapper">
-                    
-                    {/* 1. 返信がある場合だけトグルボタンを表示 */}
-                    {data.replies && data.replies.length > 0 && (
+                    {data.replies?.length > 0 && (
                         <button 
                             className="reply-toggle-btn nodrag" 
                             onClick={(e) => { e.stopPropagation(); setIsRepliesOpen(!isRepliesOpen); }}
@@ -294,31 +246,25 @@ const CustomNoteNode = ({ data, selected }: NodeProps) => {
                         </button>
                     )}
 
-                    {/* 2. 返信リスト本体 */}
-                    {isRepliesOpen && data.replies && data.replies.length > 0 && (
+                    {isRepliesOpen && data.replies?.length > 0 && (
                         <div className="replies-list-body nodrag">
                             {data.replies.map((reply: any) => (
                                 <div key={reply.id} className="reply-item-modern">
-
                                     {editingReplyId === reply.id ? (
-                                        // --- 🅰️ 編集モード (ここはシームレスのままでOK！) ---
                                         <div style={{position: 'relative', width: '100%'}}>
                                             <input
                                                 type="text"
                                                 className="reply-input-box-seamless"
                                                 value={editReplyText}
                                                 onChange={(e) => setEditReplyText(e.target.value)}
-                                                onBlur={handleReplyBlur}    // 外側クリックで保存
+                                                onBlur={handleReplyBlur}
                                                 onKeyDown={handleReplyKeyDown}
                                                 autoFocus
                                             />
                                         </div>
                                     ) : (
-                                        // --- 🅱️ 表示モード (ボタンを追加！) ---
                                         <div className="reply-content-wrapper">
                                             <span className="reply-text-display">{reply.text}</span>
-
-                                            {/* ▼ ホバーで浮き出る編集ボタン ▼ */}
                                             <button 
                                                 className="floating-edit-btn"
                                                 onClick={(e) => handleStartEditReply(e, reply)}
@@ -328,14 +274,12 @@ const CustomNoteNode = ({ data, selected }: NodeProps) => {
                                             </button>
                                         </div>
                                     )}
-
                                 </div>
                             ))}
                         </div>
                     )}
 
-                    {/* 3. インライン返信入力 (ボタンを押すと出現) */}
-                    {showReplyInput && (
+                    {activeAction === 'adding_reply' && (
                         <div className="reply-input-container nodrag">
                             <input
                                 ref={inputRef}
@@ -344,42 +288,30 @@ const CustomNoteNode = ({ data, selected }: NodeProps) => {
                                 placeholder="返信を入力..."
                                 value={replyText}
                                 onChange={(e) => setReplyText(e.target.value)}
-                                onKeyDown={handleReplyKeyDown}
+                                onKeyDown={(e) => { if (e.key === 'Enter') sendReply(); }}
                             />
-                            <button className="reply-send-btn-small" onClick={sendReply}>
-                                ➤
-                            </button>
+                            <button className="reply-send-btn-small" onClick={sendReply}>➤</button>
                         </div>
                     )}
                 </div>
             )}
 
             {/* --- 操作ボタン (ホバーで出現) --- */}
-            {!isPdf && !isEditing && (
+            {!isPdf && activeAction !== 'editing_note' && (
                 <div className="action-buttons nodrag" style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                    
-                    <button 
-                        className="mini-btn" 
-                        onClick={(e) => {
-                            e.stopPropagation(); // 👈 重要：親要素（キャンバス）への通知を遮断！
-                            e.preventDefault();  // 余計な挙動を防ぐ
-                            setIsEditing(true);
-                        }}
-                    >
+                    <button className="mini-btn" onClick={(e) => toggleAction('editing_note', e)}>
                         ✏️ 編集
                     </button>
-                    
                     <button className="mini-btn" onClick={handleToggleReplyInput}>
                         💬 返信
                     </button>
 
-                    {/* 宛先変更 (リッチなポップオーバー付き) */}
                     <div style={{ position: 'relative' }}>
-                        <button className="mini-btn" onClick={handleChangeAgenda}>
+                        <button className="mini-btn" onClick={(e) => toggleAction('selecting_agenda', e)}>
                             🔀 宛先
                         </button>
 
-                        {showAgendaMenu && data.agendaList && (
+                        {activeAction === 'selecting_agenda' && data.agendaList && (
                             <div className="agenda-popover">
                                 <div className="agenda-menu-header">宛先を選択</div>
                                 <div style={{maxHeight: '150px', overflowY: 'auto'}}>
@@ -399,7 +331,6 @@ const CustomNoteNode = ({ data, selected }: NodeProps) => {
                             </div>
                         )}
                     </div>
-
                 </div>
             )}
         </div>

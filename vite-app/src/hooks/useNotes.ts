@@ -92,13 +92,52 @@ export const useNotes = () => {
     // --- 4. ノート削除 (Delete) ---
     const deleteNote = useCallback(async (id: string) => {
         try {
-            const { error } = await supabase.from('notes').delete().eq('id', id);
-            if (error) throw error;
+            // 削除対象のノートの情報を確保
+            const noteToDelete = notes.find(n => n.id === id);
+
+            if (noteToDelete && noteToDelete.type === 'pdf' && noteToDelete.file_url) {
+                // ▼ PDFの場合：同じURLを持つ全ページ（付箋）とStorageの実体を一気に削除！
+                const fileUrl = noteToDelete.file_url;
+
+                // 1. DBから該当するPDF付箋を「すべて」削除（idではなく、file_urlで指定して一網打尽にする）
+                const { error } = await supabase.from('notes').delete().eq('file_url', fileUrl);
+                if (error) throw error;
+
+                // 2. ボードから全部消えたので、Storageの実体も容赦なく削除！
+                try {
+                    const urlObj = new URL(fileUrl);
+                    // URLから 'uploads/' バケットの後のパス（例: pdfs/xxx.pdf）を抽出
+                    const pathParts = urlObj.pathname.split('/uploads/');
+                    
+                    if (pathParts.length > 1) {
+                        const filePath = decodeURIComponent(pathParts[1]); 
+
+                        // Supabase Storageから実体を削除！
+                        const { error: storageError } = await supabase.storage
+                            .from('uploads')
+                            .remove([filePath]);
+                            
+                        if (storageError) {
+                            console.error('ストレージのファイル削除失敗:', storageError);
+                        } else {
+                            console.log(`🗑️ PDF付箋が削除されたため、関連する全ページとStorageの実体を削除しました！: ${filePath}`);
+                        }
+                    }
+                } catch (err) {
+                    console.error('URL解析エラー:', err);
+                }
+
+            } else {
+                // ▼ PDF以外（通常のメモ付箋）の場合：これまで通り、その付箋だけを削除
+                const { error } = await supabase.from('notes').delete().eq('id', id);
+                if (error) throw error;
+            }
+
         } catch (e) {
             console.error('削除失敗:', e);
             alert('削除できなかった...');
         }
-    }, []);
+    }, [notes]);
 
     // --- 5. 返信追加 (Reply) ---
     const addReply = useCallback(async (noteId: string, replyText: string, icon?: string | null) => {
@@ -169,6 +208,28 @@ export const useNotes = () => {
         }
     };
 
+// 👇 8. ノート複製 (Duplicate) をここに追加！
+    const duplicateNote = useCallback(async (id: string) => {
+        const original = notes.find(n => n.id === id);
+        if (!original) return;
+        
+        // id と created_at を除外してコピー用のデータを作る
+        const { id: _id, created_at: _c, ...rest } = original; 
+        
+        try {
+            const { error } = await supabase.from('notes').insert({
+                ...rest, 
+                x: original.x + 20, 
+                y: original.y + 20, // ちょっとズラして配置
+                text: (original.text || '') + ' (コピー)', 
+                is_locked: false,
+            });
+            if (error) throw error;
+        } catch (e) {
+            console.error('複製失敗:', e);
+        }
+    }, [notes]);
+
     return {
         notes,
         loading,
@@ -178,5 +239,6 @@ export const useNotes = () => {
         addReply,
         deleteAllNotes,
         updateReply,
+        duplicateNote,
     };
 };

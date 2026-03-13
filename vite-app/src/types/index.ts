@@ -41,6 +41,10 @@ export type NoteData = {
     
     // DB管理項目
     created_at?: string;
+
+    // 新規追加：付箋内部から親の関数を呼び出すための型
+    onDeleteNote?: (id: string) => void;
+    onUpdateNote?: (id: string, updates: Partial<NoteData>) => void;
 };
 
 // --- アジェンダ・進行管理 ---
